@@ -53,79 +53,106 @@ export default function ReverseSearchButtons({
   const openExternalSearch = async (provider: typeof searchProviders[0]) => {
     // Check if it's a data URL (uploaded file)
     if (imageUrl.startsWith('data:')) {
-      try {
-        // Upload image to backend and get public URL
-        const publicUrl = await uploadImageForSearch(imageUrl);
-        const encodedUrl = encodeURIComponent(publicUrl);
-        const searchUrl = provider.url + encodedUrl;
-        window.open(searchUrl, '_blank', 'noopener,noreferrer');
-      } catch (error) {
-        // Fallback to manual instructions
-        showManualInstructions(provider);
-      }
+      // For data URLs, provide manual instructions since external search engines 
+      // cannot access base64 data directly
+      showManualInstructions(provider);
       return;
     }
     
-    // For public URLs, use directly
+    // For public URLs, open search engine directly
     const encodedUrl = encodeURIComponent(imageUrl);
     const searchUrl = provider.url + encodedUrl;
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const uploadImageForSearch = async (dataUrl: string): Promise<string> => {
-    try {
-      // Convert data URL to blob
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-      
-      // Create form data
-      const formData = new FormData();
-      formData.append('image', blob, 'image.jpg');
-      
-      // Upload to backend endpoint
-      const uploadResponse = await fetch('/api/upload-for-search', {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!uploadResponse.ok) {
-        throw new Error('Upload failed');
-      }
-      
-      const result = await uploadResponse.json();
-      return result.publicUrl;
-    } catch (error) {
-      console.error('Failed to upload image for search:', error);
-      throw error;
-    }
-  };
-
   const showManualInstructions = (provider: typeof searchProviders[0]) => {
-    const message = `To search with ${provider.name}:
+    const instructions = getDetailedInstructions(provider);
+    
+    // Create a more user-friendly modal-style alert
+    const message = `🔍 ${provider.name} Search Instructions
 
-1. Click the download button (⬇) above to save the image
-2. Go to ${getSearchEngineUrl(provider.key)}
-3. Upload the downloaded image file
+To search for similar images:
 
-This is required because the image needs to be publicly accessible for external search engines.`;
+${instructions.steps.join('\n')}
+
+💡 Tip: ${instructions.tip || 'Download the image first using the download button above.'}
+
+This manual process is required because external search engines cannot access uploaded image data directly.`;
     
     alert(message);
+    
+    // Open the search engine page to help the user
+    window.open(instructions.directUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const getSearchEngineUrl = (engineKey: string): string => {
-    switch (engineKey) {
+  const getDetailedInstructions = (provider: typeof searchProviders[0]) => {
+    switch (provider.key) {
       case 'google':
-        return 'https://images.google.com (click camera icon)';
+        return {
+          steps: [
+            '1. 📥 Download the image using the ⬇ button above',
+            '2. 🌐 Go to images.google.com (opening now...)',
+            '3. 📷 Click the camera icon in the search bar',
+            '4. 📁 Choose "Upload an image" and select your downloaded file'
+          ],
+          tip: 'Google Images provides comprehensive reverse search results.',
+          directUrl: 'https://images.google.com'
+        };
       case 'google_lens':
-        return 'https://lens.google.com';
+        return {
+          steps: [
+            '1. 📥 Download the image using the ⬇ button above',
+            '2. 🌐 Go to lens.google.com (opening now...)',
+            '3. 📤 Click the upload button or drag your image',
+            '4. 📁 Select your downloaded image file'
+          ],
+          tip: 'Google Lens can identify objects, text, and provide contextual information.',
+          directUrl: 'https://lens.google.com'
+        };
       case 'bing':
-        return 'https://www.bing.com/visualsearch';
+        return {
+          steps: [
+            '1. 📥 Download the image using the ⬇ button above',
+            '2. 🌐 Go to bing.com/visualsearch (opening now...)',
+            '3. 📤 Click "Browse" or drag your image to the upload area',
+            '4. 📁 Select your downloaded image file'
+          ],
+          tip: 'Bing Visual Search excels at product identification and shopping results.',
+          directUrl: 'https://www.bing.com/visualsearch'
+        };
       case 'yandex':
-        return 'https://yandex.com/images';
+        return {
+          steps: [
+            '1. 📥 Download the image using the ⬇ button above',
+            '2. 🌐 Go to yandex.com/images (opening now...)',
+            '3. 📷 Click the camera icon in the search bar',
+            '4. 📁 Choose "Select file" and upload your downloaded image'
+          ],
+          tip: 'Yandex often finds unique results not available on other search engines.',
+          directUrl: 'https://yandex.com/images'
+        };
       case 'tineye':
-        return 'https://tineye.com';
+        return {
+          steps: [
+            '1. 📥 Download the image using the ⬇ button above',
+            '2. 🌐 Go to tineye.com (opening now...)',
+            '3. 📤 Click "Upload" button',
+            '4. 📁 Select your downloaded image file'
+          ],
+          tip: 'TinEye specializes in finding exact matches and tracking image origins.',
+          directUrl: 'https://tineye.com'
+        };
       default:
-        return 'the search engine website';
+        return {
+          steps: [
+            '1. 📥 Download the image using the ⬇ button above',
+            '2. 🌐 Visit the search engine website',
+            '3. 📤 Look for an image upload or camera icon',
+            '4. 📁 Upload your downloaded image file'
+          ],
+          tip: 'Each search engine may have different upload methods.',
+          directUrl: 'https://google.com'
+        };
     }
   };
 
@@ -199,15 +226,18 @@ This is required because the image needs to be publicly accessible for external 
           </div>
         ) : isDataUrl ? (
           <div className="space-y-4">
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-              <p className="text-amber-800 dark:text-amber-200 text-sm">
-                <strong>External Search Instructions:</strong> Search engines cannot access uploaded files directly.
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <p className="text-blue-800 dark:text-blue-200 text-sm">
+                <strong>📋 How it works:</strong> Each button below will:
               </p>
-              <ul className="text-amber-800 dark:text-amber-200 text-sm mt-2 ml-4 list-disc space-y-1">
-                <li>Click the download button (⬇) above to save your image</li>
-                <li>Click any search button below for step-by-step instructions</li>
-                <li>Or use the API search option at the bottom for automated results</li>
+              <ul className="text-blue-800 dark:text-blue-200 text-sm mt-2 ml-4 list-disc space-y-1">
+                <li>Show you step-by-step instructions for that search engine</li>
+                <li>Automatically open the search engine website in a new tab</li>
+                <li>Guide you through uploading your downloaded image file</li>
               </ul>
+              <p className="text-blue-700 dark:text-blue-300 text-xs mt-3 font-medium">
+                💡 Tip: Download your image first using the ⬇ button above, then click any search button for instructions.
+              </p>
             </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -229,7 +259,7 @@ This is required because the image needs to be publicly accessible for external 
                   <span className="text-sm text-center leading-tight">
                     {provider.name}
                   </span>
-                  <span className="text-xs opacity-75">Instructions</span>
+                  <span className="text-xs opacity-75">Get Instructions</span>
                 </button>
               ))}
             </div>
