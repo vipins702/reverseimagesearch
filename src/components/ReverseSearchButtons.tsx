@@ -54,19 +54,31 @@ export default function ReverseSearchButtons({
   const [showInstructions, setShowInstructions] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<typeof searchProviders[0] | null>(null);
 
+  // Debug logging
+  console.log('ReverseSearchButtons rendered with imageUrl:', imageUrl ? imageUrl.substring(0, 50) + '...' : 'null');
+
   const openExternalSearch = async (provider: typeof searchProviders[0]) => {
+    console.log('openExternalSearch called:', { 
+      providerName: provider.name, 
+      imageUrl: imageUrl.substring(0, 50) + '...', 
+      isDataUrl: imageUrl.startsWith('data:') 
+    });
+    
     // Check if it's a data URL (uploaded file)
     if (imageUrl.startsWith('data:')) {
       // For data URLs, show modal instructions since external search engines 
       // cannot access base64 data directly
+      console.log('Showing modal for', provider.name);
       setSelectedProvider(provider);
       setShowInstructions(true);
       return;
     }
     
     // For public URLs, open search engine directly
+    console.log('Opening direct URL for', provider.name);
     const encodedUrl = encodeURIComponent(imageUrl);
     const searchUrl = provider.url + encodedUrl;
+    console.log('Opening URL:', searchUrl);
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
   };
 
