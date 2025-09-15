@@ -120,12 +120,14 @@ export default function ReverseSearchButtons({
       // Clean up the blob URL
       setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
       
-      // Open the appropriate Google service
+      // Use the correct public URLs that don't cause 403 errors
       let targetUrl: string;
       if (provider.key === 'google_lens') {
-        targetUrl = 'https://lens.google.com';
+        // Use the main Google Lens page, not any upload endpoints
+        targetUrl = 'https://lens.google.com/';
       } else {
-        targetUrl = 'https://images.google.com';
+        // Use the main Google Images page
+        targetUrl = 'https://images.google.com/';
       }
       
       // Show instructions modal with auto-download notification
@@ -183,7 +185,7 @@ export default function ReverseSearchButtons({
             '3. 📤 Click the upload button or drag your image',
             '4. 📁 Select your downloaded image file'
           ],
-          tip: 'Google Lens can identify objects, text, and provide contextual information with proper vsrid parameters.',
+          tip: 'Google Lens can identify objects, text, and provide contextual information. Use the main lens.google.com page to avoid 403 errors.',
           directUrl: 'https://lens.google.com'
         };
       case 'bing':
@@ -427,6 +429,7 @@ export default function ReverseSearchButtons({
           <li>• Multiple matches may indicate a widely distributed image</li>
           <li>• Original source and earliest publication date help verify authenticity</li>
           <li>• No matches don't guarantee authenticity - could be a new creation</li>
+          <li>• Use main Google pages (not upload endpoints) to avoid 403 errors</li>
         </ul>
       </div>
 
