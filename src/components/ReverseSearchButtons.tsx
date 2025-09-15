@@ -83,82 +83,107 @@ export default function ReverseSearchButtons({
     // For public URLs, open search engine directly
     console.log('Opening direct URL for', provider.name);
     const encodedUrl = encodeURIComponent(imageUrl);
-    const searchUrl = provider.url + encodedUrl;
+    let searchUrl;
+    
+    if (provider.key === 'google_lens') {
+      // For Google Lens, use a different URL pattern
+      searchUrl = `https://lens.google.com/uploadbyurl/search?img_url=${encodedUrl}`;
+    } else {
+      searchUrl = provider.url + encodedUrl;
+    }
+    
     console.log('Opening URL:', searchUrl);
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleGoogleImageUpload = async (provider: typeof searchProviders[0]) => {
     try {
+      console.log('Starting Google upload process for', provider.name);
+      
       // Convert data URL to blob
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       
-      // Create a form that submits to Google Images
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.enctype = 'multipart/form-data';
-      form.target = '_blank';
+      // Create a temporary file for download
+      const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' });
       
+      // Auto-download the image for user
+      const downloadUrl = URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = downloadUrl;
+      downloadLink.download = 'search-image.jpg';
+      downloadLink.style.display = 'none';
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      // Clean up the blob URL
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      
+      // Open the appropriate Google service
+      let targetUrl: string;
       if (provider.key === 'google_lens') {
-        form.action = 'https://lens.google.com/upload';
+        targetUrl = 'https://lens.google.com';
       } else {
-        form.action = 'https://images.google.com/searchbyimage/upload';
+        targetUrl = 'https://images.google.com';
       }
       
-      // Create file input
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.name = 'encoded_image';
-      fileInput.style.display = 'none';
+      // Show instructions modal with auto-download notification
+      setSelectedProvider({
+        ...provider,
+        autoDownloaded: true
+      } as any);
+      setShowInstructions(true);
       
-      // Convert blob to file
-      const file = new File([blob], 'image.jpg', { type: blob.type });
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      fileInput.files = dataTransfer.files;
-      
-      form.appendChild(fileInput);
-      document.body.appendChild(form);
-      
-      console.log('Submitting image to', form.action);
-      form.submit();
-      
-      // Clean up
+      // Open Google in new tab
       setTimeout(() => {
-        document.body.removeChild(form);
-      }, 1000);
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      }, 500);
+      
+      console.log('Image auto-downloaded and Google page will open');
       
     } catch (error) {
-      console.error('Failed to upload image to Google:', error);
-      // Fallback to modal instructions
+      console.error('Failed to process image for Google upload:', error);
+      // Fallback to regular modal instructions
       setSelectedProvider(provider);
       setShowInstructions(true);
     }
   };
 
   const getDetailedInstructions = (provider: typeof searchProviders[0]) => {
+    const isAutoDownloaded = (provider as any).autoDownloaded;
+    
     switch (provider.key) {
       case 'google':
         return {
-          steps: [
-            '1. 📥 Download the image using the ⬇ button above',
+          steps: isAutoDownloaded ? [
+            '1. ✅ Your image has been downloaded automatically as "search-image.jpg"',
+            '2. 🌐 Google Images is opening in a new tab...',
+            '3. 📷 Click the camera icon in the search bar',
+            '4. � Choose "Upload an image" and select the downloaded file'
+          ] : [
+            '1. �📥 Download the image using the ⬇ button above',
             '2. 🌐 Go to images.google.com (opening now...)',
             '3. 📷 Click the camera icon in the search bar',
             '4. 📁 Choose "Upload an image" and select your downloaded file'
           ],
-          tip: 'Google Images provides comprehensive reverse search results.',
+          tip: 'Google Images provides comprehensive reverse search results with vsrid URLs.',
           directUrl: 'https://images.google.com'
         };
       case 'google_lens':
         return {
-          steps: [
+          steps: isAutoDownloaded ? [
+            '1. ✅ Your image has been downloaded automatically as "search-image.jpg"',
+            '2. 🌐 Google Lens is opening in a new tab...',
+            '3. 📤 Click the upload button or drag your image',
+            '4. 📁 Select the downloaded image file'
+          ] : [
             '1. 📥 Download the image using the ⬇ button above',
             '2. 🌐 Go to lens.google.com (opening now...)',
             '3. 📤 Click the upload button or drag your image',
             '4. 📁 Select your downloaded image file'
           ],
-          tip: 'Google Lens can identify objects, text, and provide contextual information.',
+          tip: 'Google Lens can identify objects, text, and provide contextual information with proper vsrid parameters.',
           directUrl: 'https://lens.google.com'
         };
       case 'bing':
