@@ -19,7 +19,7 @@ const searchProviders = [
   {
     name: 'Google Lens',
     key: 'google_lens',
-    url: 'https://lens.google.com/uploadbyurl?url=',
+    url: 'https://lens.google.com/',
     icon: '📷',
     color: 'bg-green-500 hover:bg-green-600'
   },

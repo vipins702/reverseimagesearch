@@ -148,7 +148,7 @@ class DetectService {
     const encodedUrl = encodeURIComponent(imageUrl);
     
     return {
-      googleLens: `https://lens.google.com/uploadbyurl?url=${encodedUrl}`,
+      googleLens: `https://lens.google.com/`,
       tineye: `https://tineye.com/search?url=${encodedUrl}`,
       bingVisual: `https://www.bing.com/visualsearch?q=imgurl:${encodedUrl}`,
       yandex: `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`
