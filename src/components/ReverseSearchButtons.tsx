@@ -19,14 +19,14 @@ const searchProviders = [
     name: 'Google Lens',
     key: 'google_lens',
     url: 'https://lens.google.com/uploadbyurl?url=',
-    icon: '�️',
+    icon: '📷',
     color: 'bg-green-500 hover:bg-green-600'
   },
   {
     name: 'TinEye',
     key: 'tineye',
     url: 'https://tineye.com/search?url=',
-    icon: '�',
+    icon: '🔎',
     color: 'bg-purple-500 hover:bg-purple-600'
   },
   {
