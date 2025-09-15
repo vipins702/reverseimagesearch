@@ -1,0 +1,31 @@
+{
+  "name": "{APP_NAME}",
+  "version": "1.0.0",
+  "description": "A mobile-first, responsive web application for an image-authenticity tool.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "axios": "^0.21.1"
+  },
+  "devDependencies": {
+    "vite": "^2.0.0",
+    "typescript": "^4.0.0",
+    "eslint": "^7.0.0",
+    "eslint-plugin-react": "^7.0.0"
+  },
+  "keywords": [
+    "image",
+    "authenticity",
+    "tool",
+    "responsive",
+    "mobile-first"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
