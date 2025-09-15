@@ -12,7 +12,7 @@ const searchProviders = [
   {
     name: 'Google Images',
     key: 'google',
-    url: 'https://www.google.com/searchbyimage?image_url=',
+    url: 'https://images.google.com/searchbyimage?image_url=',
     icon: '🔍',
     color: 'bg-blue-500 hover:bg-blue-600'
   },
@@ -66,8 +66,14 @@ export default function ReverseSearchButtons({
     
     // Check if it's a data URL (uploaded file)
     if (imageUrl.startsWith('data:')) {
-      // For data URLs, show modal instructions since external search engines 
-      // cannot access base64 data directly
+      // For Google Images and Google Lens, we need to upload the image first
+      if (provider.key === 'google' || provider.key === 'google_lens') {
+        console.log('Attempting to upload image to Google for', provider.name);
+        await handleGoogleImageUpload(provider);
+        return;
+      }
+      
+      // For other providers, show modal instructions
       console.log('Showing modal for', provider.name);
       setSelectedProvider(provider);
       setShowInstructions(true);
@@ -80,6 +86,55 @@ export default function ReverseSearchButtons({
     const searchUrl = provider.url + encodedUrl;
     console.log('Opening URL:', searchUrl);
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleGoogleImageUpload = async (provider: typeof searchProviders[0]) => {
+    try {
+      // Convert data URL to blob
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      
+      // Create a form that submits to Google Images
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.enctype = 'multipart/form-data';
+      form.target = '_blank';
+      
+      if (provider.key === 'google_lens') {
+        form.action = 'https://lens.google.com/upload';
+      } else {
+        form.action = 'https://images.google.com/searchbyimage/upload';
+      }
+      
+      // Create file input
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.name = 'encoded_image';
+      fileInput.style.display = 'none';
+      
+      // Convert blob to file
+      const file = new File([blob], 'image.jpg', { type: blob.type });
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      fileInput.files = dataTransfer.files;
+      
+      form.appendChild(fileInput);
+      document.body.appendChild(form);
+      
+      console.log('Submitting image to', form.action);
+      form.submit();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(form);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Failed to upload image to Google:', error);
+      // Fallback to modal instructions
+      setSelectedProvider(provider);
+      setShowInstructions(true);
+    }
   };
 
   const getDetailedInstructions = (provider: typeof searchProviders[0]) => {
