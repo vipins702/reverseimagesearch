@@ -1,5 +1,4 @@
 // src/components/ReverseSearchButtons.tsx
-import React from 'react';
 import { ExternalLink, Copy, Search, Download } from 'lucide-react';
 
 interface ReverseSearchButtonsProps {

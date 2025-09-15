@@ -1,5 +1,5 @@
 // src/components/ForensicsViewer.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Eye, EyeOff, ZoomIn, Info, MapPin } from 'lucide-react';
 
 interface CloneRegion {

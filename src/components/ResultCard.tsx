@@ -1,5 +1,4 @@
 // src/components/ResultCard.tsx
-import React from 'react';
 import { Save, Share, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
 interface AnalysisResult {

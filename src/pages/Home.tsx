@@ -1,5 +1,4 @@
 // src/pages/Home.tsx
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Upload, Search, Shield, Clock, ChevronRight } from 'lucide-react';
 
