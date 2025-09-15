@@ -1,5 +1,6 @@
 // src/components/ReverseSearchButtons.tsx
-import { ExternalLink, Copy, Search, Download } from 'lucide-react';
+import { useState } from 'react';
+import { ExternalLink, Copy, Search, Download, X } from 'lucide-react';
 
 interface ReverseSearchButtonsProps {
   imageUrl: string;
@@ -50,12 +51,16 @@ export default function ReverseSearchButtons({
   onApiSearch, 
   isApiAvailable = false 
 }: ReverseSearchButtonsProps) {
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<typeof searchProviders[0] | null>(null);
+
   const openExternalSearch = async (provider: typeof searchProviders[0]) => {
     // Check if it's a data URL (uploaded file)
     if (imageUrl.startsWith('data:')) {
-      // For data URLs, provide manual instructions since external search engines 
+      // For data URLs, show modal instructions since external search engines 
       // cannot access base64 data directly
-      showManualInstructions(provider);
+      setSelectedProvider(provider);
+      setShowInstructions(true);
       return;
     }
     
@@ -63,26 +68,6 @@ export default function ReverseSearchButtons({
     const encodedUrl = encodeURIComponent(imageUrl);
     const searchUrl = provider.url + encodedUrl;
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const showManualInstructions = (provider: typeof searchProviders[0]) => {
-    const instructions = getDetailedInstructions(provider);
-    
-    // Create a more user-friendly modal-style alert
-    const message = `🔍 ${provider.name} Search Instructions
-
-To search for similar images:
-
-${instructions.steps.join('\n')}
-
-💡 Tip: ${instructions.tip || 'Download the image first using the download button above.'}
-
-This manual process is required because external search engines cannot access uploaded image data directly.`;
-    
-    alert(message);
-    
-    // Open the search engine page to help the user
-    window.open(instructions.directUrl, '_blank', 'noopener,noreferrer');
   };
 
   const getDetailedInstructions = (provider: typeof searchProviders[0]) => {
@@ -352,6 +337,74 @@ This manual process is required because external search engines cannot access up
           <li>• No matches don't guarantee authenticity - could be a new creation</li>
         </ul>
       </div>
+
+      {/* Instructions Modal */}
+      {showInstructions && selectedProvider && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                📋 {selectedProvider.name} Search Instructions
+              </h3>
+              <button
+                onClick={() => setShowInstructions(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-gray-600 dark:text-gray-300">
+                To search for similar images, follow these steps:
+              </p>
+              
+              {(() => {
+                const instructions = getDetailedInstructions(selectedProvider);
+                return (
+                  <div className="space-y-4">
+                    <ol className="space-y-3">
+                      {instructions.steps.map((step, index) => (
+                        <li key={index} className="flex gap-3">
+                          <span className="flex-shrink-0 w-6 h-6 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-sm font-medium">
+                            {index + 1}
+                          </span>
+                          <span className="text-gray-700 dark:text-gray-300">{step.replace(/^\d+\.\s*/, '')}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                      <p className="text-blue-800 dark:text-blue-200 text-sm">
+                        <strong>💡 Tip:</strong> {instructions.tip}
+                      </p>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          window.open(instructions.directUrl, '_blank', 'noopener,noreferrer');
+                          setShowInstructions(false);
+                        }}
+                        className="flex-1 btn-primary inline-flex items-center justify-center gap-2"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Open {selectedProvider.name}
+                      </button>
+                      <button
+                        onClick={() => setShowInstructions(false)}
+                        className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
