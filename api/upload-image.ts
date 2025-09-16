@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 import { v4 as uuidv4 } from 'uuid';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -23,9 +22,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    console.log('Upload API called with method:', req.method);
+    console.log('Request body keys:', Object.keys(req.body || {}));
+    console.log('Environment check - BLOB_READ_WRITE_TOKEN exists:', !!process.env.BLOB_READ_WRITE_TOKEN);
+    
     const { imageData, filename } = req.body;
 
     if (!imageData) {
+      console.log('No image data provided in request body');
       return res.status(400).json({ error: 'No image data provided' });
     }
 
@@ -45,49 +49,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const uniqueId = uuidv4().substring(0, 8);
     const finalFilename = `${nameWithoutExt}-${uniqueId}.${imageType}`;
 
-    // For Vercel, we need to save to a location that can be served statically
-    // Try saving to public directory which should be accessible
-    let uploadsDir;
-    let publicUrl;
-    
-    try {
-      // Try to save in public directory for static serving
-      uploadsDir = join(process.cwd(), 'public', 'uploads');
-      if (!existsSync(uploadsDir)) {
-        mkdirSync(uploadsDir, { recursive: true });
-      }
-      
-      // Write file to public directory
-      const filePath = join(uploadsDir, finalFilename);
-      writeFileSync(filePath, imageBuffer);
-      
-      // Generate URL that should be accessible like static files
-      const baseUrl = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}` 
-        : req.headers.host?.includes('localhost') 
-          ? `http://${req.headers.host}` 
-          : `https://${req.headers.host}`;
-      
-      // Try static file serving first
-      publicUrl = `${baseUrl}/uploads/${finalFilename}`;
-      
-    } catch (error) {
-      console.error('Error saving to public directory:', error);
-      throw error;
-    }
+    console.log('Preparing upload:', {
+      originalName,
+      finalFilename,
+      imageType,
+      bufferSize: imageBuffer.length
+    });
 
-    console.log('Image uploaded successfully:', {
+    // Upload to Vercel Blob storage (this provides real public URLs)
+    console.log('Calling Vercel Blob put() function...');
+    
+    // Check if we have the required environment variable
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('BLOB_READ_WRITE_TOKEN environment variable is not set');
+      return res.status(500).json({
+        success: false,
+        error: 'Blob storage not configured',
+        message: 'BLOB_READ_WRITE_TOKEN environment variable is required. Please configure it in Vercel dashboard under Environment Variables.'
+      });
+    }
+    
+    const blob = await put(finalFilename, imageBuffer, {
+      access: 'public',
+      contentType: `image/${imageType}`,
+    });
+    console.log('Blob upload completed:', blob);
+
+    // The blob.url is a real public URL that external services can access
+    const publicUrl = blob.url;
+
+    console.log('Image uploaded successfully to Vercel Blob:', {
       filename: finalFilename,
       size: imageBuffer.length,
-      publicUrl: publicUrl
+      publicUrl: publicUrl,
+      downloadUrl: blob.downloadUrl
     });
 
     // Return the public URL (like your PHP session storage)
     return res.status(200).json({
       success: true,
       publicUrl: publicUrl,
+      downloadUrl: blob.downloadUrl,
       filename: finalFilename,
-      message: 'Image uploaded successfully'
+      message: 'Image uploaded successfully to cloud storage'
     });
 
   } catch (error) {
@@ -99,11 +103,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb', // Set reasonable file size limit
-    },
-  },
-};
