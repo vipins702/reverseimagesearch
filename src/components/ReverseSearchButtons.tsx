@@ -80,16 +80,30 @@ export default function ReverseSearchButtons({
       return;
     }
     
-    // For public URLs, open search engine directly
+    // For public URLs, open search engine directly (like your PHP project)
     console.log('Opening direct URL for', provider.name);
     const encodedUrl = encodeURIComponent(imageUrl);
     let searchUrl;
     
-    if (provider.key === 'google_lens') {
-      // For Google Lens, use a different URL pattern
-      searchUrl = `https://lens.google.com/uploadbyurl/search?img_url=${encodedUrl}`;
-    } else {
-      searchUrl = provider.url + encodedUrl;
+    // Use the exact same URL patterns as your working PHP project
+    switch (provider.key) {
+      case 'google':
+        searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
+        break;
+      case 'google_lens':
+        searchUrl = `https://lens.google.com/uploadbyurl/search?img_url=${encodedUrl}`;
+        break;
+      case 'tineye':
+        searchUrl = `https://tineye.com/search?url=${encodedUrl}`;
+        break;
+      case 'bing':
+        searchUrl = `https://www.bing.com/images/search?q=imgurl:${encodedUrl}&view=detailv2`;
+        break;
+      case 'yandex':
+        searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
+        break;
+      default:
+        searchUrl = provider.url + encodedUrl;
     }
     
     console.log('Opening URL:', searchUrl);
@@ -294,7 +308,10 @@ export default function ReverseSearchButtons({
         </div>
 
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Open image in external search engines to find similar or identical images
+          {imageUrl.startsWith('data:') 
+            ? 'Upload an image or provide a public image URL to enable external search tools.'
+            : 'Click any button below to open the search engine with your image URL (like checkduplicateimage.online)'
+          }
         </p>
 
         {(!isValidUrl && !isDataUrl) ? (
@@ -363,7 +380,9 @@ export default function ReverseSearchButtons({
                 <span className="text-sm text-center leading-tight">
                   {provider.name}
                 </span>
-                <ExternalLink className="w-4 h-4 opacity-75" />
+                <span className="text-xs opacity-75">
+                  {imageUrl.startsWith('http') ? 'Direct Search' : <ExternalLink className="w-4 h-4" />}
+                </span>
               </button>
             ))}
           </div>

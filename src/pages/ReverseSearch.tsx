@@ -5,13 +5,15 @@ import ReverseSearchButtons from '../components/ReverseSearchButtons';
 
 export default function ReverseSearch() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [publicImageUrl, setPublicImageUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setError('Please upload a JPG, PNG, or WebP image');
       return;
@@ -23,12 +25,49 @@ export default function ReverseSearch() {
     }
 
     setError(null);
+    setIsUploading(true);
     
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setUploadedImage(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      // Convert file to base64 for upload (similar to PHP file handling)
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target?.result as string;
+        setUploadedImage(dataUrl); // For preview
+        
+        // Upload to server to get public URL (like your PHP upload.php)
+        try {
+          const response = await fetch('/api/upload-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              imageData: dataUrl,
+              filename: file.name
+            })
+          });
+
+          const result = await response.json();
+          
+          if (result.success) {
+            // Store the public URL (equivalent to $_SESSION['id'] in your PHP)
+            setPublicImageUrl(result.publicUrl);
+            console.log('Image uploaded successfully. Public URL:', result.publicUrl);
+          } else {
+            throw new Error(result.message || 'Upload failed');
+          }
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          setError('Failed to upload image. Please try again.');
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError('Failed to process image');
+      setIsUploading(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -88,6 +127,7 @@ export default function ReverseSearch() {
 
   const reset = () => {
     setUploadedImage(null);
+    setPublicImageUrl(null);
     setSearchResults([]);
     setError(null);
     if (fileInputRef.current) {
@@ -229,11 +269,26 @@ export default function ReverseSearch() {
 
             {/* Search Options */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-              <ReverseSearchButtons
-                imageUrl={uploadedImage}
-                onApiSearch={handleApiSearch}
-                isApiAvailable={true}
-              />
+              {isUploading ? (
+                <div className="text-center py-8">
+                  <div className="inline-flex items-center gap-3">
+                    <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Uploading image...
+                    </span>
+                  </div>
+                </div>
+              ) : publicImageUrl ? (
+                <ReverseSearchButtons
+                  imageUrl={publicImageUrl}
+                  onApiSearch={handleApiSearch}
+                  isApiAvailable={true}
+                />
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Upload processing...</p>
+                </div>
+              )}
             </div>
 
             {/* API Search Results */}
