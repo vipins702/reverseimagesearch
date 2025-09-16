@@ -82,13 +82,16 @@ export default function ReverseSearchButtons({
     
     // For public URLs, open search engine directly (like your PHP project)
     console.log('Opening direct URL for', provider.name);
+    console.log('Image URL being used:', imageUrl);
     const encodedUrl = encodeURIComponent(imageUrl);
+    console.log('Encoded URL:', encodedUrl);
     let searchUrl;
     
     // Use the exact same URL patterns as your working PHP project
     switch (provider.key) {
       case 'google':
-        searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
+        // Try different Google URL patterns that are known to work
+        searchUrl = `https://images.google.com/searchbyimage?image_url=${encodedUrl}`;
         break;
       case 'google_lens':
         searchUrl = `https://lens.google.com/uploadbyurl/search?img_url=${encodedUrl}`;
@@ -106,7 +109,7 @@ export default function ReverseSearchButtons({
         searchUrl = provider.url + encodedUrl;
     }
     
-    console.log('Opening URL:', searchUrl);
+    console.log('Final search URL:', searchUrl);
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
   };
 
