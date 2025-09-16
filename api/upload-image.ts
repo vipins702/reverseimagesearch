@@ -32,6 +32,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Remove data URL prefix if present
     const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
     
+    // Convert base64 to buffer
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    
     // Get image type from data URL
     const mimeMatch = imageData.match(/^data:image\/([a-z]+);base64,/);
     const imageType = mimeMatch ? mimeMatch[1] : 'jpg';
@@ -42,27 +45,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const uniqueId = uuidv4().substring(0, 8);
     const finalFilename = `${nameWithoutExt}-${uniqueId}.${imageType}`;
 
-    // Create uploads directory if it doesn't exist (similar to PHP target_dir)
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadsDir)) {
-      mkdirSync(uploadsDir, { recursive: true });
+    // For Vercel, we need to save to a location that can be served statically
+    // Try saving to public directory which should be accessible
+    let uploadsDir;
+    let publicUrl;
+    
+    try {
+      // Try to save in public directory for static serving
+      uploadsDir = join(process.cwd(), 'public', 'uploads');
+      if (!existsSync(uploadsDir)) {
+        mkdirSync(uploadsDir, { recursive: true });
+      }
+      
+      // Write file to public directory
+      const filePath = join(uploadsDir, finalFilename);
+      writeFileSync(filePath, imageBuffer);
+      
+      // Generate URL that should be accessible like static files
+      const baseUrl = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}` 
+        : req.headers.host?.includes('localhost') 
+          ? `http://${req.headers.host}` 
+          : `https://${req.headers.host}`;
+      
+      // Try static file serving first
+      publicUrl = `${baseUrl}/uploads/${finalFilename}`;
+      
+    } catch (error) {
+      console.error('Error saving to public directory:', error);
+      throw error;
     }
-
-    // Convert base64 to buffer and save file
-    const imageBuffer = Buffer.from(base64Data, 'base64');
-    const filePath = join(uploadsDir, finalFilename);
-    
-    // Write file to filesystem (equivalent to move_uploaded_file in PHP)
-    writeFileSync(filePath, imageBuffer);
-
-    // Generate public URL (similar to your PHP $id variable)
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : req.headers.host?.includes('localhost') 
-        ? `http://${req.headers.host}` 
-        : `https://${req.headers.host}`;
-    
-    const publicUrl = `${baseUrl}/api/uploads/${finalFilename}`;
 
     console.log('Image uploaded successfully:', {
       filename: finalFilename,
