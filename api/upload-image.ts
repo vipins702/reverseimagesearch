@@ -62,6 +62,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Check if we have the required environment variable
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       console.error('BLOB_READ_WRITE_TOKEN environment variable is not set');
+      
+      // For local development, create a mock public URL for testing
+      if (process.env.NODE_ENV === 'development' || req.headers.host?.includes('localhost')) {
+        console.log('Development mode: Creating mock public URL for testing');
+        const mockUrl = `https://veritas-image-analyzer.vercel.app/api/test-urls?filename=${finalFilename}`;
+        
+        return res.status(200).json({
+          success: true,
+          publicUrl: mockUrl,
+          downloadUrl: mockUrl,
+          filename: finalFilename,
+          message: 'Development mode: Mock URL created. Configure BLOB_READ_WRITE_TOKEN for production.',
+          isDevelopment: true
+        });
+      }
+      
       return res.status(500).json({
         success: false,
         error: 'Blob storage not configured',

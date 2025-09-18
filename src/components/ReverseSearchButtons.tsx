@@ -313,7 +313,9 @@ export default function ReverseSearchButtons({
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           {imageUrl.startsWith('data:') 
             ? 'Upload an image or provide a public image URL to enable external search tools.'
-            : 'Click any button below to open the search engine with your image URL (like checkduplicateimage.online)'
+            : imageUrl.includes('test-urls')
+              ? '🧪 Development Mode: Using test image for reverse search demonstration (configure BLOB_READ_WRITE_TOKEN for real uploads)'
+              : 'Click any button below to open the search engine with your image URL (like checkduplicateimage.online)'
           }
         </p>
 
