@@ -63,8 +63,17 @@ export default function ReverseSearchButtons({
     console.log('openExternalSearch called:', { 
       providerName: provider.name, 
       imageUrl: imageUrl.substring(0, 50) + '...', 
-      isDataUrl: imageUrl.startsWith('data:') 
+      isDataUrl: imageUrl.startsWith('data:'),
+      isVsridUrl: imageUrl.includes('vsrid='),
+      isGoogleUrl: imageUrl.includes('google.com')
     });
+    
+    // If this is already a vsrid URL or Google search URL, open it directly
+    if (imageUrl.includes('vsrid=') || imageUrl.includes('google.com/search')) {
+      console.log('Opening vsrid URL directly');
+      window.open(imageUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
     
     // Check if it's a data URL (uploaded file)
     if (imageUrl.startsWith('data:')) {
@@ -125,6 +134,20 @@ export default function ReverseSearchButtons({
   const handleGoogleImageUpload = async (provider: typeof searchProviders[0]) => {
     try {
       console.log('Starting Google upload process for', provider.name);
+      
+      // Check if imageUrl is a vsrid URL or other Google URL (don't fetch these)
+      if (imageUrl.includes('vsrid=') || imageUrl.includes('google.com/search')) {
+        console.log('Detected vsrid URL - redirecting directly without fetch');
+        window.open(imageUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      
+      // Only fetch if it's a data URL or our own image URL
+      if (!imageUrl.startsWith('data:') && !imageUrl.includes('picsum.photos') && !imageUrl.includes('blob.vercel-storage.com')) {
+        console.log('Unsupported URL type for download, opening directly');
+        window.open(imageUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
       
       // Convert data URL to blob
       const response = await fetch(imageUrl);
@@ -320,9 +343,11 @@ export default function ReverseSearchButtons({
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           {imageUrl.startsWith('data:') 
             ? 'Upload an image or provide a public image URL to enable external search tools.'
-            : imageUrl.includes('test-urls')
-              ? '🧪 Development Mode: Using test image for reverse search demonstration (configure BLOB_READ_WRITE_TOKEN for real uploads)'
-              : 'Click any button below to open the search engine with your image URL (like checkduplicateimage.online)'
+            : imageUrl.includes('vsrid=')
+              ? '🎯 SUCCESS! You have a Google vsrid URL - this contains your reverse search results (just like labnol.org generates)'
+              : imageUrl.includes('test-urls')
+                ? '🧪 Development Mode: Using test image for reverse search demonstration (configure BLOB_READ_WRITE_TOKEN for real uploads)'
+                : 'Click any button below to open the search engine with your image URL (like checkduplicateimage.online)'
           }
         </p>
 
@@ -331,6 +356,44 @@ export default function ReverseSearchButtons({
             <p className="text-gray-600 dark:text-gray-400 text-sm">
               Upload an image or provide a public image URL to enable external search tools.
             </p>
+          </div>
+        ) : imageUrl.includes('vsrid=') ? (
+          <div className="space-y-4">
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <h4 className="text-green-900 dark:text-green-200 font-semibold mb-2">
+                🎯 Success! Google vsrid URL Generated
+              </h4>
+              <p className="text-green-800 dark:text-green-300 text-sm mb-3">
+                You now have a Google visual search results URL (just like labnol.org creates). This URL contains your reverse search results.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => window.open(imageUrl, '_blank', 'noopener,noreferrer')}
+                  className="btn-primary inline-flex items-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  View Google Results
+                </button>
+                <button
+                  onClick={() => navigator.clipboard.writeText(imageUrl)}
+                  className="px-4 py-2 text-green-700 dark:text-green-300 hover:text-green-800 dark:hover:text-green-200 border border-green-300 dark:border-green-600 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/30"
+                >
+                  Copy URL
+                </button>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h4 className="text-blue-900 dark:text-blue-200 font-semibold mb-2">
+                Understanding Your vsrid URL
+              </h4>
+              <ul className="text-blue-800 dark:text-blue-300 text-sm space-y-1">
+                <li>• <strong>vsrid</strong> = Visual Search Result ID (unique to your image)</li>
+                <li>• <strong>udm=26</strong> = Universal Data Model for image search</li>
+                <li>• This is the same format that labnol.org generates</li>
+                <li>• Contains comprehensive reverse search results</li>
+              </ul>
+            </div>
           </div>
         ) : isDataUrl ? (
           <div className="space-y-4">
