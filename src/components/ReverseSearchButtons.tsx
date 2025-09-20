@@ -169,50 +169,80 @@ export default function ReverseSearchButtons({
       // This is much more reliable than trying to upload directly to Google
       
       console.log('Uploading image to server for public URL...');
-      
-      // Upload image to our server to get a public URL
-      const uploadResponse = await fetch('/api/upload-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          imageData: imageUrl, // Can be data URL or public URL
-          filename: `google-search-${Date.now()}.jpg`
-        })
-      });
-      
-      // Defensive: try to read text first for clearer errors on 4xx/5xx
-      const rawText = await uploadResponse.text();
+
+      // Prefer local realtime upload folder when available: /api/upload-for-search (multipart)
       let uploadResult: any = null;
+      let publicUrl: string | null = null;
+
+      // Prepare a Blob from the current imageUrl (data URL or http)
+      const fetched = await fetch(imageUrl);
+      const imageBlob = await fetched.blob();
+
       try {
-        uploadResult = rawText ? JSON.parse(rawText) : null;
-      } catch (e) {
-        console.error('Upload JSON parse failed. Raw response:', rawText);
-        throw new Error(`Upload responded with non-JSON. Status=${uploadResponse.status}`);
-      }
-      
-      if (!uploadResponse.ok || !uploadResult) {
-        console.error('Upload failed response:', {
-          status: uploadResponse.status,
-          statusText: uploadResponse.statusText,
-          body: uploadResult
+        const formData = new FormData();
+        formData.append('image', imageBlob, `image-${Date.now()}.jpg`);
+
+        const localRes = await fetch('/api/upload-for-search', {
+          method: 'POST',
+          body: formData
         });
-        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+
+        if (localRes.ok) {
+          const localJson = await localRes.json();
+          console.log('Local upload-for-search result:', localJson);
+          if (localJson && localJson.success && localJson.publicUrl) {
+            uploadResult = localJson;
+            publicUrl = localJson.publicUrl as string;
+          }
+        } else {
+          console.warn('Local /api/upload-for-search failed with status', localRes.status);
+        }
+      } catch (e) {
+        console.warn('Local realtime upload attempt failed, will try serverless:', e);
       }
-      
-      console.log('Upload result (parsed):', uploadResult);
+
+      // Fallback to serverless upload-image (Vercel Blob) with JSON body
+      if (!publicUrl) {
+        const uploadResponse = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            imageData: imageUrl, // data URL
+            filename: `google-search-${Date.now()}.jpg`
+          })
+        });
+
+        const rawText = await uploadResponse.text();
+        try {
+          uploadResult = rawText ? JSON.parse(rawText) : null;
+        } catch (e) {
+          console.error('Upload JSON parse failed. Raw response:', rawText);
+          throw new Error(`Upload responded with non-JSON. Status=${uploadResponse.status}`);
+        }
+
+        if (!uploadResponse.ok || !uploadResult) {
+          console.error('Upload failed response:', {
+            status: uploadResponse.status,
+            statusText: uploadResponse.statusText,
+            body: uploadResult
+          });
+          throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
+        }
+        console.log('Serverless upload result (parsed):', uploadResult);
+        publicUrl = uploadResult.publicUrl as string;
+      }
       
       if (!uploadResult.success || !uploadResult.publicUrl) {
         throw new Error('Failed to get public URL from upload');
       }
       
-      const publicUrl = uploadResult.publicUrl;
-      console.log('Got public URL:', publicUrl);
+  console.log('Got public URL:', publicUrl);
 
       // STABLE & RELIABLE APPROACH: Use searchbyimage with the public URL.
       // This is the method you recommended, and it is the most robust.
-      const searchUrl = `https://www.google.com/searchbyimage?image_url=${encodeURIComponent(publicUrl)}`;
+  const searchUrl = `https://www.google.com/searchbyimage?image_url=${encodeURIComponent(publicUrl)}&tbm=isch`;
       
       console.log('Opening stable Google search URL:', searchUrl);
       
