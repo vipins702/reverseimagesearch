@@ -156,69 +156,158 @@ export default function ReverseSearchButtons({
 
   const handleGoogleImageUpload = async (provider: typeof searchProviders[0]) => {
     try {
-      console.log('Starting Google upload process for', provider.name);
+      console.log('Starting Google vsrid upload process for', provider.name);
       
-      // Check if imageUrl is a vsrid URL or other Google URL (don't fetch these)
+      // Check if imageUrl is already a vsrid URL (don't fetch these)
       if (imageUrl.includes('vsrid=') || imageUrl.includes('google.com/search')) {
         console.log('Detected vsrid URL - redirecting directly without fetch');
         window.open(imageUrl, '_blank', 'noopener,noreferrer');
         return;
       }
       
-      // Only fetch if it's a data URL or our own image URL
-      if (!imageUrl.startsWith('data:') && !imageUrl.includes('picsum.photos') && !imageUrl.includes('blob.vercel-storage.com')) {
-        console.log('Unsupported URL type for download, opening directly');
-        window.open(imageUrl, '_blank', 'noopener,noreferrer');
-        return;
-      }
+      // CRITICAL: Implement direct Google searchbyimage upload to get proper vsrid URLs
+      // Working URLs need these parameters: vsrid, vsint, udm=26, lns_vfs, vsdim, session IDs
       
-      // Convert data URL to blob
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
+      console.log('Converting image for Google upload...');
       
-      // Create download for user (removed unused File variable)
-      const downloadUrl = URL.createObjectURL(blob);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = downloadUrl;
-      downloadLink.download = 'search-image.jpg';
-      downloadLink.style.display = 'none';
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      let imageBlob: Blob;
       
-      // Clean up the blob URL
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-      
-      // Use URLs that are more likely to generate vsrid-style results (like labnol.org)
-      let targetUrl: string;
-      if (provider.key === 'google_lens') {
-        // Google Lens main page - this is what labnol.org uses to get vsrid URLs
-        targetUrl = 'https://lens.google.com/';
+      if (imageUrl.startsWith('data:')) {
+        // Convert data URL to blob
+        const response = await fetch(imageUrl);
+        imageBlob = await response.blob();
       } else {
-        // Google Images main page for reverse search
-        targetUrl = 'https://www.google.com/imghp';
+        // Fetch public URL and convert to blob
+        const response = await fetch(imageUrl);
+        imageBlob = await response.blob();
       }
       
-      // Show instructions modal with auto-download notification
-      setSelectedProvider({
-        ...provider,
-        autoDownloaded: true,
-        labnolStyle: true // Flag to show labnol.org-style instructions
-      } as any);
-      setShowInstructions(true);
+      // Create form data for Google's searchbyimage/upload endpoint
+      const formData = new FormData();
+      formData.append('encoded_image', imageBlob, 'image.jpg');
+      formData.append('image_content', '');
+      formData.append('filename', '');
+      formData.append('hl', 'en');
+      formData.append('safe', 'images');
+      formData.append('udm', '26'); // Universal search mode for images - CRITICAL parameter
       
-      // Open Google in new tab (delay to let modal show first)
-      setTimeout(() => {
-        window.open(targetUrl, '_blank', 'noopener,noreferrer');
-      }, 500);
+      console.log('Uploading to Google searchbyimage endpoint for vsrid generation...');
       
-      console.log('Image auto-downloaded and Google page will open - this mimics labnol.org process');
+      // Upload to Google's searchbyimage endpoint
+      const uploadUrl = 'https://www.google.com/searchbyimage/upload';
+      
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'same-origin',
+        },
+      });
+      
+      console.log('Google upload response:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        hasVsrid: response.url.includes('vsrid=')
+      });
+      
+      if (response.ok && response.url.includes('vsrid=')) {
+        // Successfully generated vsrid URL with all parameters!
+        const vsridUrl = response.url;
+        console.log('SUCCESS: Generated complete vsrid URL:', vsridUrl);
+        
+        // Parse the URL to verify we have all required parameters
+        const urlParams = new URL(vsridUrl);
+        const vsrid = urlParams.searchParams.get('vsrid');
+        const vsint = urlParams.searchParams.get('vsint');
+        const udm = urlParams.searchParams.get('udm');
+        const lns_vfs = urlParams.searchParams.get('lns_vfs');
+        const vsdim = urlParams.searchParams.get('vsdim');
+        const gsessionid = urlParams.searchParams.get('gsessionid');
+        const lsessionid = urlParams.searchParams.get('lsessionid');
+        
+        console.log('vsrid URL parameters analysis:', {
+          vsrid: !!vsrid,
+          vsint: !!vsint, 
+          udm: !!udm,
+          lns_vfs: !!lns_vfs,
+          vsdim: !!vsdim,
+          gsessionid: !!gsessionid,
+          lsessionid: !!lsessionid,
+          totalParams: Array.from(urlParams.searchParams.keys()).length
+        });
+        
+        // Open the complete vsrid URL - this should work like the working example!
+        window.open(vsridUrl, '_blank', 'noopener,noreferrer');
+        console.log('Opened complete vsrid URL with all parameters');
+        return;
+        
+      } else {
+        console.error('Google upload failed:', response.status, response.statusText);
+        throw new Error(`Google upload failed: ${response.status} ${response.statusText}`);
+      }
       
     } catch (error) {
-      console.error('Failed to process image for Google upload:', error);
-      // Fallback to regular modal instructions
-      setSelectedProvider(provider);
-      setShowInstructions(true);
+      console.error('Google vsrid generation failed:', error);
+      
+      // Fallback to manual upload with auto-download
+      console.log('Falling back to manual upload method...');
+      
+      try {
+        // Convert data URL to blob for download
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        
+        // Create download for user
+        const downloadUrl = URL.createObjectURL(blob);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = downloadUrl;
+        downloadLink.download = 'search-image.jpg';
+        downloadLink.style.display = 'none';
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        // Clean up the blob URL
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        
+        // Use URLs that are more likely to generate vsrid-style results
+        let targetUrl: string;
+        if (provider.key === 'google_lens') {
+          targetUrl = 'https://lens.google.com/';
+        } else {
+          targetUrl = 'https://www.google.com/imghp';
+        }
+        
+        // Show instructions modal with auto-download notification
+        setSelectedProvider({
+          ...provider,
+          autoDownloaded: true,
+          labnolStyle: true,
+          fallbackReason: 'Direct vsrid generation failed - using manual upload method'
+        } as any);
+        setShowInstructions(true);
+        
+        // Open Google in new tab
+        setTimeout(() => {
+          window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        }, 500);
+        
+        console.log('Image auto-downloaded and Google page opened - manual upload fallback');
+        
+      } catch (downloadError) {
+        console.error('Fallback download also failed:', downloadError);
+        // Show manual fallback as last resort
+        setShowManualFallback(true);
+      }
     }
   };
 
