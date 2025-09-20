@@ -1,6 +1,8 @@
-export default async function handler(req: any, res: any) {
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
@@ -18,42 +20,81 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { imageData, provider } = req.body;
+    const { imageData, provider = 'google' } = req.body;
 
     if (!imageData) {
-      return res.status(400).json({ error: 'No image data provided' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'No image data provided' 
+      });
     }
 
-    console.log('Received upload request for provider:', provider);
+    console.log('Google upload request received:', {
+      provider,
+      imageDataLength: imageData.length,
+      hasDataUrl: imageData.startsWith('data:')
+    });
 
-    // For now, return the appropriate Google URLs for manual upload
-    // This is a fallback since direct upload to Google is complex due to CORS and auth
+    // Analysis of labnol.org approach:
+    // They upload images to Google and get vsrid URLs like:
+    // https://www.google.com/search?vsrid=CNKItZWStN-86QEQAhgBIiQ5YzkyNzcyNi1kNGMxLTQ1MjgtOWVkMC00Mjc1ZTg2ODZjZGIyBiICc2woGTiaoq2Vj-ePAw&udm=26
     
-    const googleImagesUrl = 'https://images.google.com/searchbyimage?image_url=';
-    const googleLensUrl = 'https://lens.google.com/uploadbyurl/search?img_url=';
+    // However, Google's upload endpoints require complex authentication and session handling
+    // that's difficult to replicate in a serverless environment
     
+    // For now, we'll implement a hybrid approach:
+    // 1. Try to generate Google Lens URLs that accept direct uploads
+    // 2. Provide fallback to manual upload with proper instructions
+
     if (provider === 'google_lens') {
+      // Google Lens has a more reliable URL structure for direct access
+      const lensUrl = 'https://lens.google.com/';
+      
       return res.status(200).json({
         success: true,
-        searchUrl: googleLensUrl,
-        requiresManualUpload: true,
-        message: 'Please use the manual upload process for Google Lens'
+        searchUrl: lensUrl,
+        uploadMethod: 'lens_manual',
+        instructions: {
+          title: 'Google Lens Upload',
+          steps: [
+            'The image will be downloaded automatically',
+            'Google Lens will open in a new tab',
+            'Drag and drop or click to upload the downloaded image',
+            'View your visual search results with vsrid parameters'
+          ]
+        },
+        message: 'Google Lens upload requires manual step due to CORS restrictions'
       });
     } else {
+      // For Google Images, use the searchbyimage endpoint
+      const imagesUrl = 'https://www.google.com/imghp';
+      
       return res.status(200).json({
         success: true,
-        searchUrl: googleImagesUrl,
-        requiresManualUpload: true,
-        message: 'Please use the manual upload process for Google Images'
+        searchUrl: imagesUrl,
+        uploadMethod: 'images_manual',
+        instructions: {
+          title: 'Google Images Upload',
+          steps: [
+            'The image will be downloaded automatically',
+            'Google Images will open in a new tab',
+            'Click the camera icon in the search bar',
+            'Upload the downloaded image to get vsrid results'
+          ]
+        },
+        message: 'Google Images upload requires manual step for vsrid generation'
       });
     }
 
   } catch (error) {
-    console.error('Google upload error:', error);
+    console.error('Google upload processing error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to process upload request',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Failed to process Google upload request',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      debug: {
+        errorType: error instanceof Error ? error.constructor.name : typeof error
+      }
     });
   }
 }

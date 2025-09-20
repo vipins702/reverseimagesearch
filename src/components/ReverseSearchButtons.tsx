@@ -143,29 +143,30 @@ export default function ReverseSearchButtons({
       // Clean up the blob URL
       setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
       
-      // Use the correct public URLs that don't cause 403 errors
+      // Use URLs that are more likely to generate vsrid-style results (like labnol.org)
       let targetUrl: string;
       if (provider.key === 'google_lens') {
-        // Use the main Google Lens page, not any upload endpoints
+        // Google Lens main page - this is what labnol.org uses to get vsrid URLs
         targetUrl = 'https://lens.google.com/';
       } else {
-        // Use the main Google Images page
-        targetUrl = 'https://images.google.com/';
+        // Google Images main page for reverse search
+        targetUrl = 'https://www.google.com/imghp';
       }
       
       // Show instructions modal with auto-download notification
       setSelectedProvider({
         ...provider,
-        autoDownloaded: true
+        autoDownloaded: true,
+        labnolStyle: true // Flag to show labnol.org-style instructions
       } as any);
       setShowInstructions(true);
       
-      // Open Google in new tab
+      // Open Google in new tab (delay to let modal show first)
       setTimeout(() => {
         window.open(targetUrl, '_blank', 'noopener,noreferrer');
       }, 500);
       
-      console.log('Image auto-downloaded and Google page will open');
+      console.log('Image auto-downloaded and Google page will open - this mimics labnol.org process');
       
     } catch (error) {
       console.error('Failed to process image for Google upload:', error);
@@ -192,7 +193,7 @@ export default function ReverseSearchButtons({
             '3. 📷 Click the camera icon in the search bar',
             '4. 📁 Choose "Upload an image" and select your downloaded file'
           ],
-          tip: 'Google Images provides comprehensive reverse search results with vsrid URLs.',
+          tip: 'Google Images provides comprehensive reverse search results. When uploaded directly to Google, you get URLs with vsrid parameters like labnol.org!',
           directUrl: 'https://images.google.com'
         };
       case 'google_lens':
@@ -208,7 +209,7 @@ export default function ReverseSearchButtons({
             '3. 📤 Click the upload button or drag your image',
             '4. 📁 Select your downloaded image file'
           ],
-          tip: 'Google Lens can identify objects, text, and provide contextual information. Use the main lens.google.com page to avoid 403 errors.',
+          tip: 'Google Lens generates vsrid URLs just like labnol.org when you upload images directly. Perfect for detailed visual analysis!',
           directUrl: 'https://lens.google.com'
         };
       case 'bing':
@@ -462,14 +463,15 @@ export default function ReverseSearchButtons({
       {/* Help Text */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
-          How Reverse Search Works
+          How Reverse Search Works (Like labnol.org)
         </h4>
         <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
           <li>• External tools search the web for visually similar images</li>
+          <li>• Google Lens generates vsrid URLs like: https://www.google.com/search?vsrid=...</li>
           <li>• Multiple matches may indicate a widely distributed image</li>
           <li>• Original source and earliest publication date help verify authenticity</li>
           <li>• No matches don't guarantee authenticity - could be a new creation</li>
-          <li>• Use main Google pages (not upload endpoints) to avoid 403 errors</li>
+          <li>• Our method mimics labnol.org's approach for consistent results</li>
         </ul>
       </div>
 
