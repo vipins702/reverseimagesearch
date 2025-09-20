@@ -13,35 +13,30 @@ const searchProviders = [
   {
     name: 'Google Images',
     key: 'google',
-    url: 'https://www.google.com/searchbyimage?image_url=',
     icon: '🔍',
     color: 'bg-blue-500 hover:bg-blue-600'
   },
   {
     name: 'Google Lens',
     key: 'google_lens', 
-    url: 'https://www.google.com/searchbyimage?image_url=',
     icon: '📷',
     color: 'bg-green-500 hover:bg-green-600'
   },
   {
     name: 'TinEye',
     key: 'tineye',
-    url: 'https://tineye.com/search?url=',
     icon: '🔎',
     color: 'bg-purple-500 hover:bg-purple-600'
   },
   {
     name: 'Bing Visual',
     key: 'bing',
-    url: 'https://www.bing.com/images/search?q=imgurl:',
     icon: '🌐',
     color: 'bg-orange-500 hover:bg-orange-600'
   },
   {
     name: 'Yandex',
     key: 'yandex',
-    url: 'https://yandex.com/images/search?url=',
     icon: '🗺️',
     color: 'bg-red-500 hover:bg-red-600'
   }
@@ -54,354 +49,71 @@ export default function ReverseSearchButtons({
 }: ReverseSearchButtonsProps) {
   const [showInstructions, setShowInstructions] = useState(false);
   const [showManualFallback, setShowManualFallback] = useState(false);
-  const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<typeof searchProviders[0] | null>(null);
 
-  // Debug logging
-  console.log('ReverseSearchButtons rendered with imageUrl:', imageUrl ? imageUrl.substring(0, 50) + '...' : 'null');
-
-  const openExternalSearch = async (provider: typeof searchProviders[0]) => {
-    console.log('openExternalSearch called:', { 
-      providerName: provider.name, 
-      imageUrl: imageUrl.substring(0, 50) + '...', 
-      isDataUrl: imageUrl.startsWith('data:'),
-      isVsridUrl: imageUrl.includes('vsrid='),
-      isGoogleUrl: imageUrl.includes('google.com'),
-      isPublicUrl: imageUrl.startsWith('http')
-    });
-    
-    // If this is already a vsrid URL or Google search URL, open it directly
-    if (imageUrl.includes('vsrid=') || imageUrl.includes('google.com/search')) {
-      console.log('Opening vsrid URL directly');
-      window.open(imageUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    
-    // Check if it's a data URL (uploaded file) - use manual upload
-    if (imageUrl.startsWith('data:')) {
-      // For Google Images and Google Lens, we need to upload the image first
-      if (provider.key === 'google' || provider.key === 'google_lens') {
-        console.log('Data URL detected - using manual upload for', provider.name);
-        await handleGoogleImageUpload(provider);
-        return;
-      }
-      
-      // For other providers, show modal instructions
-      console.log('Showing modal for', provider.name);
-      setSelectedProvider(provider);
-      setShowInstructions(true);
-      return;
-    }
-    
-    // For public URLs (blob storage, test URLs, etc.) - use direct URL method (SAFER)
-    if (imageUrl.startsWith('http')) {
-      console.log('Public URL detected - using direct search method for', provider.name);
-      
-      // Show privacy notice for public URLs
-      if (imageUrl.includes('blob.vercel-storage.com') || imageUrl.includes('picsum.photos')) {
-        setSelectedProvider(provider);
-        setShowPrivacyNotice(true);
-        return;
-      }
-      
-      // For test URLs, proceed directly
-      await openDirectSearch(provider);
-      return;
-    }
-    
-    // Fallback to manual upload
-    console.log('Using fallback manual upload for', provider.name);
-    setSelectedProvider(provider);
-    setShowInstructions(true);
-  };
-
-  const openDirectSearch = async (provider: typeof searchProviders[0]) => {
-    console.log('Opening direct search for', provider.name, 'with URL:', imageUrl);
-    
-    // CRITICAL: Always use encodeURIComponent for proper URL encoding
-    const encodedUrl = encodeURIComponent(imageUrl);
-    console.log('Encoded URL:', encodedUrl);
-    
-    let searchUrl: string;
-    
-    // Use the correct URL patterns for direct public URL search
-    switch (provider.key) {
-      case 'google':
-      case 'google_lens':
-        // Google Images searchbyimage endpoint - this generates vsrid URLs
-        searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}&tbm=isch`;
-        break;
-      case 'tineye':
-        // TinEye direct URL parameter
-        searchUrl = `https://tineye.com/search?url=${encodedUrl}`;
-        break;
-      case 'bing':
-        // Bing Visual Search with imgurl parameter
-        searchUrl = `https://www.bing.com/images/search?q=imgurl:${encodedUrl}&view=detailv2`;
-        break;
-      case 'yandex':
-        // Yandex Images requires rpt=imageview for URL-based reverse search
-        searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
-        break;
-      default:
-        // Fallback for any other providers
-        searchUrl = provider.url + encodedUrl;
-    }
-    
-    console.log('Final search URL:', searchUrl);
-    
-    // Open in new tab with proper security
-    window.open(searchUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleGoogleImageUpload = async (provider: typeof searchProviders[0]) => {
+  // SIMPLE PHP-STYLE APPROACH: Upload → Public URL → Direct Redirect
+  const handleSearch = async (provider: typeof searchProviders[0]) => {
     try {
-      console.log('Starting Google image search process for', provider.name);
+      let publicUrl = imageUrl;
       
-      // Check if imageUrl is already a Google search URL (don't process these)
-      if (imageUrl.includes('google.com/search') || imageUrl.includes('lens.google.com')) {
-        console.log('Detected Google search URL - redirecting directly');
-        window.open(imageUrl, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      
-      // RECOMMENDED APPROACH: Upload to server → get public URL → use Google searchbyimage?image_url=
-      // This is much more reliable than trying to upload directly to Google
-      
-      console.log('Uploading image to server for public URL...');
-
-      // Prefer local realtime upload folder when available (localhost only): /api/upload-for-search (multipart)
-      let uploadResult: any = null;
-      let publicUrl: string | null = null;
-  const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(window.location.hostname);
-  const isViteDev = typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.DEV === true;
-  const isVercelDevPort = window.location.port === '3000';
-  const shouldTryLocalRealtime = isLocalHost && isViteDev && !isVercelDevPort;
-
-      // Prepare a Blob from the current imageUrl (data URL or http)
-      const fetched = await fetch(imageUrl);
-      const imageBlob = await fetched.blob();
-      if (shouldTryLocalRealtime) {
-        try {
-          const formData = new FormData();
-          formData.append('image', imageBlob, `image-${Date.now()}.jpg`);
-
-          const localRes = await fetch('/api/upload-for-search', {
-            method: 'POST',
-            body: formData
-          });
-
-          if (localRes.ok) {
-            const localJson = await localRes.json();
-            console.log('Local upload-for-search result:', localJson);
-            if (localJson && localJson.success && localJson.publicUrl) {
-              uploadResult = localJson;
-              publicUrl = localJson.publicUrl as string;
-            }
-          } else {
-            console.warn('Local /api/upload-for-search failed with status', localRes.status);
-          }
-        } catch (e) {
-          console.warn('Local realtime upload attempt failed, will try serverless:', e);
-        }
-      } else {
-        console.log('Skipping /api/upload-for-search (not Vite dev with local Express) - using serverless upload');
-      }
-
-      // Fallback to serverless upload-image (Vercel Blob) with JSON body
-      if (!publicUrl) {
+      // If it's a data URL, upload to get public URL (like PHP move_uploaded_file)
+      if (imageUrl.startsWith('data:')) {
+        console.log('Uploading image to get public URL...');
+        
         const uploadResponse = await fetch('/api/upload-image', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            imageData: imageUrl, // data URL
-            filename: `google-search-${Date.now()}.jpg`
+            imageData: imageUrl,
+            filename: `search-${Date.now()}.jpg`
           })
         });
-
-        const rawText = await uploadResponse.text();
-        try {
-          uploadResult = rawText ? JSON.parse(rawText) : null;
-        } catch (e) {
-          console.error('Upload JSON parse failed. Raw response:', rawText);
-          throw new Error(`Upload responded with non-JSON. Status=${uploadResponse.status}`);
+        
+        const result = await uploadResponse.json();
+        if (!result.success) {
+          throw new Error('Upload failed');
         }
-
-        if (!uploadResponse.ok || !uploadResult) {
-          console.error('Upload failed response:', {
-            status: uploadResponse.status,
-            statusText: uploadResponse.statusText,
-            body: uploadResult
-          });
-          throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
-        }
-        console.log('Serverless upload result (parsed):', uploadResult);
-        publicUrl = uploadResult.publicUrl as string;
+        
+        publicUrl = result.publicUrl;
+        console.log('Got public URL:', publicUrl);
       }
       
-      if (!uploadResult.success || !uploadResult.publicUrl) {
-        throw new Error('Failed to get public URL from upload');
+      // Direct redirect to search engines (like PHP header("Location: ..."))
+      const encodedUrl = encodeURIComponent(publicUrl);
+      let searchUrl: string;
+      
+      switch (provider.key) {
+        case 'google':
+        case 'google_lens':
+          searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}&tbm=isch`;
+          break;
+        case 'bing':
+          searchUrl = `https://www.bing.com/images/search?q=imgurl:${encodedUrl}&view=detailv2`;
+          break;
+        case 'yandex':
+          searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
+          break;
+        case 'tineye':
+          searchUrl = `https://tineye.com/search?url=${encodedUrl}`;
+          break;
+        default:
+          searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
       }
       
-  console.log('Got public URL:', publicUrl);
-
-      // STABLE & RELIABLE APPROACH: Use searchbyimage with the public URL.
-      // This is the method you recommended, and it is the most robust.
-  const searchUrl = `https://www.google.com/searchbyimage?image_url=${encodeURIComponent(publicUrl)}&tbm=isch`;
-      
-      console.log('Opening stable Google search URL:', searchUrl);
-      
-      // Open the constructed URL. Google will handle the rest.
+      console.log('Opening:', searchUrl);
       window.open(searchUrl, '_blank', 'noopener,noreferrer');
       
-      console.log('Google search opened with stable public URL method.');
-      return;
-      
     } catch (error) {
-      console.error('Google search with public URL failed:', error);
-      
-      // Fallback to manual upload with auto-download
-      console.log('Falling back to manual upload method...');
-      
-      try {
-        // Convert image URL to blob for download
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        
-        // Create download for user
-        const downloadUrl = URL.createObjectURL(blob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = downloadUrl;
-        downloadLink.download = 'search-image.jpg';
-        downloadLink.style.display = 'none';
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        
-        // Clean up the blob URL
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-        
-        // Use standard Google search URLs
-        let targetUrl: string;
-        if (provider.key === 'google_lens') {
-          targetUrl = 'https://lens.google.com/';
-        } else {
-          targetUrl = 'https://www.google.com/imghp';
-        }
-        
-        // Show instructions modal with auto-download notification
-        setSelectedProvider({
-          ...provider,
-          autoDownloaded: true,
-          labnolStyle: true,
-          fallbackReason: 'Public URL method failed - using manual upload fallback'
-        } as any);
-        setShowInstructions(true);
-        
-        // Open Google in new tab
-        setTimeout(() => {
-          window.open(targetUrl, '_blank', 'noopener,noreferrer');
-        }, 500);
-        
-        console.log('Image auto-downloaded and Google page opened - manual upload fallback');
-        
-      } catch (downloadError) {
-        console.error('Fallback download also failed:', downloadError);
-        // Show manual fallback as last resort
-        setShowManualFallback(true);
-      }
-    }
-  };
-
-  const getDetailedInstructions = (provider: typeof searchProviders[0]) => {
-    const isAutoDownloaded = (provider as any).autoDownloaded;
-    
-    switch (provider.key) {
-      case 'google':
-        return {
-          steps: isAutoDownloaded ? [
-            '1. ✅ Your image has been downloaded automatically as "search-image.jpg"',
-            '2. 🌐 Google Images is opening in a new tab...',
-            '3. 📷 Click the camera icon in the search bar',
-            '4. � Choose "Upload an image" and select the downloaded file'
-          ] : [
-            '1. �📥 Download the image using the ⬇ button above',
-            '2. 🌐 Go to images.google.com (opening now...)',
-            '3. 📷 Click the camera icon in the search bar',
-            '4. 📁 Choose "Upload an image" and select your downloaded file'
-          ],
-          tip: 'Google Images provides comprehensive reverse search results. When uploaded directly to Google, you get URLs with vsrid parameters like labnol.org!',
-          directUrl: 'https://images.google.com'
-        };
-      case 'google_lens':
-        return {
-          steps: isAutoDownloaded ? [
-            '1. ✅ Your image has been downloaded automatically as "search-image.jpg"',
-            '2. 🌐 Google Lens is opening in a new tab...',
-            '3. 📤 Click the upload button or drag your image',
-            '4. 📁 Select the downloaded image file'
-          ] : [
-            '1. 📥 Download the image using the ⬇ button above',
-            '2. 🌐 Go to lens.google.com (opening now...)',
-            '3. 📤 Click the upload button or drag your image',
-            '4. 📁 Select your downloaded image file'
-          ],
-          tip: 'Google Lens generates vsrid URLs just like labnol.org when you upload images directly. Perfect for detailed visual analysis!',
-          directUrl: 'https://lens.google.com'
-        };
-      case 'bing':
-        return {
-          steps: [
-            '1. 📥 Download the image using the ⬇ button above',
-            '2. 🌐 Go to bing.com/visualsearch (opening now...)',
-            '3. 📤 Click "Browse" or drag your image to the upload area',
-            '4. 📁 Select your downloaded image file'
-          ],
-          tip: 'Bing Visual Search excels at product identification and shopping results.',
-          directUrl: 'https://www.bing.com/visualsearch'
-        };
-      case 'yandex':
-        return {
-          steps: [
-            '1. 📥 Download the image using the ⬇ button above',
-            '2. 🌐 Go to yandex.com/images (opening now...)',
-            '3. 📷 Click the camera icon in the search bar',
-            '4. 📁 Choose "Select file" and upload your downloaded image'
-          ],
-          tip: 'Yandex often finds unique results not available on other search engines.',
-          directUrl: 'https://yandex.com/images'
-        };
-      case 'tineye':
-        return {
-          steps: [
-            '1. 📥 Download the image using the ⬇ button above',
-            '2. 🌐 Go to tineye.com (opening now...)',
-            '3. 📤 Click "Upload" button',
-            '4. 📁 Select your downloaded image file'
-          ],
-          tip: 'TinEye specializes in finding exact matches and tracking image origins.',
-          directUrl: 'https://tineye.com'
-        };
-      default:
-        return {
-          steps: [
-            '1. 📥 Download the image using the ⬇ button above',
-            '2. 🌐 Visit the search engine website',
-            '3. 📤 Look for an image upload or camera icon',
-            '4. 📁 Upload your downloaded image file'
-          ],
-          tip: 'Each search engine may have different upload methods.',
-          directUrl: 'https://google.com'
-        };
+      console.error('Search failed:', error);
+      // Fallback to manual upload instructions
+      setSelectedProvider(provider);
+      setShowInstructions(true);
     }
   };
 
   const copyImageUrl = async () => {
     try {
       await navigator.clipboard.writeText(imageUrl);
-      // You could add a toast notification here
       console.log('Image URL copied to clipboard');
     } catch (err) {
       console.error('Failed to copy URL:', err);
@@ -410,7 +122,6 @@ export default function ReverseSearchButtons({
 
   const downloadImage = () => {
     if (imageUrl.startsWith('data:')) {
-      // Create download link for data URL
       const link = document.createElement('a');
       link.href = imageUrl;
       link.download = `image-${Date.now()}.jpg`;
@@ -418,12 +129,44 @@ export default function ReverseSearchButtons({
       link.click();
       document.body.removeChild(link);
     } else {
-      // For regular URLs, open in new tab (browser will handle download)
       window.open(imageUrl, '_blank');
     }
   };
 
-  const isValidUrl = imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('https'));
+  const getInstructions = (provider: typeof searchProviders[0]) => {
+    switch (provider.key) {
+      case 'google':
+        return {
+          steps: [
+            '1. Download the image using the ⬇ button above',
+            '2. Go to images.google.com',
+            '3. Click the camera icon in the search bar',
+            '4. Upload your downloaded image file'
+          ],
+          directUrl: 'https://images.google.com'
+        };
+      case 'google_lens':
+        return {
+          steps: [
+            '1. Download the image using the ⬇ button above',
+            '2. Go to lens.google.com',
+            '3. Click the upload button',
+            '4. Select your downloaded image file'
+          ],
+          directUrl: 'https://lens.google.com'
+        };
+      default:
+        return {
+          steps: [
+            '1. Download the image using the ⬇ button above',
+            '2. Visit the search engine website',
+            '3. Look for an image upload option',
+            '4. Upload your downloaded image file'
+          ],
+          directUrl: 'https://google.com'
+        };
+    }
+  };  const isValidUrl = imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('https'));
   const isDataUrl = imageUrl && imageUrl.startsWith('data:');
 
   return (
@@ -543,7 +286,7 @@ export default function ReverseSearchButtons({
               {searchProviders.map((provider) => (
                 <button
                   key={provider.name}
-                  onClick={() => openExternalSearch(provider)}
+                  onClick={() => handleSearch(provider)}
                   className={`
                     flex flex-col items-center gap-2 p-4 rounded-xl text-white font-medium
                     transition-all duration-200 hover:scale-105 hover:shadow-lg
@@ -558,7 +301,7 @@ export default function ReverseSearchButtons({
                   <span className="text-sm text-center leading-tight">
                     {provider.name}
                   </span>
-                  <span className="text-xs opacity-75">Get Instructions</span>
+                  <span className="text-xs opacity-75">Search Now</span>
                 </button>
               ))}
             </div>
@@ -568,7 +311,7 @@ export default function ReverseSearchButtons({
             {searchProviders.map((provider) => (
               <button
                 key={provider.name}
-                onClick={() => openExternalSearch(provider)}
+                onClick={() => handleSearch(provider)}
                 className={`
                   flex flex-col items-center gap-2 p-4 rounded-xl text-white font-medium
                   transition-all duration-200 hover:scale-105 hover:shadow-lg
@@ -583,9 +326,7 @@ export default function ReverseSearchButtons({
                 <span className="text-sm text-center leading-tight">
                   {provider.name}
                 </span>
-                <span className="text-xs opacity-75">
-                  {imageUrl.startsWith('http') ? 'Direct Search' : <ExternalLink className="w-4 h-4" />}
-                </span>
+                <span className="text-xs opacity-75">Direct Search</span>
               </button>
             ))}
           </div>
@@ -678,11 +419,11 @@ export default function ReverseSearchButtons({
               </p>
               
               {(() => {
-                const instructions = getDetailedInstructions(selectedProvider);
+                const instructions = getInstructions(selectedProvider);
                 return (
                   <div className="space-y-4">
                     <ol className="space-y-3">
-                      {instructions.steps.map((step, index) => (
+                      {instructions.steps.map((step: string, index: number) => (
                         <li key={index} className="flex gap-3">
                           <span className="flex-shrink-0 w-6 h-6 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-sm font-medium">
                             {index + 1}
@@ -691,12 +432,6 @@ export default function ReverseSearchButtons({
                         </li>
                       ))}
                     </ol>
-                    
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                      <p className="text-blue-800 dark:text-blue-200 text-sm">
-                        <strong>💡 Tip:</strong> {instructions.tip}
-                      </p>
-                    </div>
                     
                     <div className="flex gap-3">
                       <button
@@ -719,68 +454,6 @@ export default function ReverseSearchButtons({
                   </div>
                 );
               })()}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Privacy Notice Modal */}
-      {showPrivacyNotice && selectedProvider && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-lg w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle className="w-6 h-6 text-orange-500" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Privacy Notice
-              </h3>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
-                <p className="text-orange-800 dark:text-orange-200 text-sm">
-                  <strong>🔒 Your Image Privacy:</strong> Using direct URL search will send your hosted image URL to {selectedProvider.name}.
-                </p>
-              </div>
-              
-              <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
-                <p>
-                  <strong>What happens:</strong> {selectedProvider.name} will access your image from our secure cloud storage to perform reverse search.
-                </p>
-                <p>
-                  <strong>Alternative:</strong> You can download the image and upload manually for complete privacy control.
-                </p>
-                <p>
-                  <strong>Our commitment:</strong> Images are auto-deleted from cloud storage within hours and include noindex headers.
-                </p>
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowPrivacyNotice(false);
-                    openDirectSearch(selectedProvider);
-                  }}
-                  className="flex-1 btn-primary"
-                >
-                  Proceed with Direct Search
-                </button>
-                <button
-                  onClick={() => {
-                    setShowPrivacyNotice(false);
-                    handleGoogleImageUpload(selectedProvider);
-                  }}
-                  className="flex-1 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  Use Manual Upload
-                </button>
-              </div>
-              
-              <button
-                onClick={() => setShowPrivacyNotice(false)}
-                className="w-full text-sm text-gray-500 hover:text-gray-700"
-              >
-                Cancel
-              </button>
             </div>
           </div>
         </div>
