@@ -195,84 +195,17 @@ export default function ReverseSearchButtons({
       
       const publicUrl = uploadResult.publicUrl;
       console.log('Got public URL:', publicUrl);
+
+      // STABLE & RELIABLE APPROACH: Use searchbyimage with the public URL.
+      // This is the method you recommended, and it is the most robust.
+      const searchUrl = `https://www.google.com/searchbyimage?image_url=${encodeURIComponent(publicUrl)}`;
       
-      // Try multiple Google search approaches to get full URLs
-      let searchUrl: string;
+      console.log('Opening stable Google search URL:', searchUrl);
       
-      if (provider.key === 'google_lens') {
-        // Use Google Lens upload endpoint with full parameters
-        searchUrl = `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(publicUrl)}&hl=en`;
-      } else {
-        // Build comprehensive Google search URL with all parameters to match working examples
-        const params = new URLSearchParams({
-          image_url: publicUrl,
-          hl: 'en',
-          safe: 'images',
-          udm: '26', // Universal search mode for images
-          source: 'lnt',
-          tbs: 'simg:CAQStwEJhBgNvXKlbxMargELEgIIIhoECAAQAQ',
-          // Add the missing parameters from working examples
-          lns_mode: 'un',
-          lns_surface: '26',
-          lns_vfs: 'd',
-          vsdim: `${window.screen.width},${window.screen.height}`,
-          // Add session-like parameters
-          gs_sessionid: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          ls_sessionid: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        });
-        searchUrl = `https://www.google.com/searchbyimage?${params.toString()}`;
-      }
-      
-      console.log('Opening Google search with enhanced URL:', searchUrl);
-      console.log('URL length:', searchUrl.length, 'characters');
-      console.log('Full URL parameters:', Object.fromEntries(new URL(searchUrl).searchParams));
-      
-      // Alternative approach: try to use POST method to avoid URL shortening
-      if (!provider.key.includes('lens')) {
-        try {
-          // Create a form and submit it to maintain full parameters
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = 'https://www.google.com/searchbyimage/upload';
-          form.target = '_blank';
-          form.style.display = 'none';
-          
-          // Add hidden inputs for all parameters
-          const params = {
-            image_url: publicUrl,
-            hl: 'en',
-            safe: 'images',
-            udm: '26',
-            source: 'lnt',
-            lns_mode: 'un',
-            lns_surface: '26',
-            lns_vfs: 'd',
-            vsdim: `${window.screen.width},${window.screen.height}`
-          };
-          
-          Object.entries(params).forEach(([key, value]) => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = value;
-            form.appendChild(input);
-          });
-          
-          document.body.appendChild(form);
-          form.submit();
-          document.body.removeChild(form);
-          
-          console.log('Google search submitted via POST form with full parameters');
-          return;
-        } catch (formError) {
-          console.warn('POST form submission failed, falling back to GET:', formError);
-        }
-      }
-      
-      // Fallback: Open with GET method
+      // Open the constructed URL. Google will handle the rest.
       window.open(searchUrl, '_blank', 'noopener,noreferrer');
       
-      console.log('Google search opened with enhanced parameters method');
+      console.log('Google search opened with stable public URL method.');
       return;
       
     } catch (error) {
