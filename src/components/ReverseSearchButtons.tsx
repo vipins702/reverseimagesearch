@@ -54,6 +54,7 @@ export default function ReverseSearchButtons({
 }: ReverseSearchButtonsProps) {
   const [showInstructions, setShowInstructions] = useState(false);
   const [showManualFallback, setShowManualFallback] = useState(false);
+  const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<typeof searchProviders[0] | null>(null);
 
   // Debug logging
@@ -65,7 +66,8 @@ export default function ReverseSearchButtons({
       imageUrl: imageUrl.substring(0, 50) + '...', 
       isDataUrl: imageUrl.startsWith('data:'),
       isVsridUrl: imageUrl.includes('vsrid='),
-      isGoogleUrl: imageUrl.includes('google.com')
+      isGoogleUrl: imageUrl.includes('google.com'),
+      isPublicUrl: imageUrl.startsWith('http')
     });
     
     // If this is already a vsrid URL or Google search URL, open it directly
@@ -75,11 +77,11 @@ export default function ReverseSearchButtons({
       return;
     }
     
-    // Check if it's a data URL (uploaded file)
+    // Check if it's a data URL (uploaded file) - use manual upload
     if (imageUrl.startsWith('data:')) {
       // For Google Images and Google Lens, we need to upload the image first
       if (provider.key === 'google' || provider.key === 'google_lens') {
-        console.log('Attempting to upload image to Google for', provider.name);
+        console.log('Data URL detected - using manual upload for', provider.name);
         await handleGoogleImageUpload(provider);
         return;
       }
@@ -91,9 +93,30 @@ export default function ReverseSearchButtons({
       return;
     }
     
-    // For public URLs, open search engine directly with proper URL encoding
-    console.log('Opening direct URL for', provider.name);
-    console.log('Image URL being used:', imageUrl);
+    // For public URLs (blob storage, test URLs, etc.) - use direct URL method (SAFER)
+    if (imageUrl.startsWith('http')) {
+      console.log('Public URL detected - using direct search method for', provider.name);
+      
+      // Show privacy notice for public URLs
+      if (imageUrl.includes('blob.vercel-storage.com') || imageUrl.includes('picsum.photos')) {
+        setSelectedProvider(provider);
+        setShowPrivacyNotice(true);
+        return;
+      }
+      
+      // For test URLs, proceed directly
+      await openDirectSearch(provider);
+      return;
+    }
+    
+    // Fallback to manual upload
+    console.log('Using fallback manual upload for', provider.name);
+    setSelectedProvider(provider);
+    setShowInstructions(true);
+  };
+
+  const openDirectSearch = async (provider: typeof searchProviders[0]) => {
+    console.log('Opening direct search for', provider.name, 'with URL:', imageUrl);
     
     // CRITICAL: Always use encodeURIComponent for proper URL encoding
     const encodedUrl = encodeURIComponent(imageUrl);
@@ -101,11 +124,11 @@ export default function ReverseSearchButtons({
     
     let searchUrl: string;
     
-    // Use the correct URL patterns as specified in requirements
+    // Use the correct URL patterns for direct public URL search
     switch (provider.key) {
       case 'google':
       case 'google_lens':
-        // Google Images searchbyimage endpoint
+        // Google Images searchbyimage endpoint - this generates vsrid URLs
         searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
         break;
       case 'tineye':
@@ -345,9 +368,11 @@ export default function ReverseSearchButtons({
             ? 'Upload an image or provide a public image URL to enable external search tools.'
             : imageUrl.includes('vsrid=')
               ? '🎯 SUCCESS! You have a Google vsrid URL - this contains your reverse search results (just like labnol.org generates)'
-              : imageUrl.includes('test-urls')
+              : imageUrl.includes('test-urls') || imageUrl.includes('picsum.photos')
                 ? '🧪 Development Mode: Using test image for reverse search demonstration (configure BLOB_READ_WRITE_TOKEN for real uploads)'
-                : 'Click any button below to open the search engine with your image URL (like checkduplicateimage.online)'
+                : imageUrl.startsWith('http')
+                  ? '🔗 Public URL detected: You can use direct search (faster) or manual upload (more private)'
+                  : 'Click any button below to open the search engine with your image URL'
           }
         </p>
 
@@ -601,6 +626,68 @@ export default function ReverseSearchButtons({
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Notice Modal */}
+      {showPrivacyNotice && selectedProvider && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-lg w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="w-6 h-6 text-orange-500" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Privacy Notice
+              </h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
+                <p className="text-orange-800 dark:text-orange-200 text-sm">
+                  <strong>🔒 Your Image Privacy:</strong> Using direct URL search will send your hosted image URL to {selectedProvider.name}.
+                </p>
+              </div>
+              
+              <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                <p>
+                  <strong>What happens:</strong> {selectedProvider.name} will access your image from our secure cloud storage to perform reverse search.
+                </p>
+                <p>
+                  <strong>Alternative:</strong> You can download the image and upload manually for complete privacy control.
+                </p>
+                <p>
+                  <strong>Our commitment:</strong> Images are auto-deleted from cloud storage within hours and include noindex headers.
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowPrivacyNotice(false);
+                    openDirectSearch(selectedProvider);
+                  }}
+                  className="flex-1 btn-primary"
+                >
+                  Proceed with Direct Search
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPrivacyNotice(false);
+                    handleGoogleImageUpload(selectedProvider);
+                  }}
+                  className="flex-1 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Use Manual Upload
+                </button>
+              </div>
+              
+              <button
+                onClick={() => setShowPrivacyNotice(false)}
+                className="w-full text-sm text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
