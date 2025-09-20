@@ -71,7 +71,10 @@ export default function ReverseSearchButtons({
         
         const result = await uploadResponse.json();
         if (!result.success) {
-          throw new Error('Upload failed');
+          console.error('Upload failed:', result.message);
+          // Show error message to user about BLOB_READ_WRITE_TOKEN
+          alert(`Upload failed: ${result.message}\n\nSolution: ${result.solution || 'Configure storage'}`);
+          return;
         }
         
         publicUrl = result.publicUrl;

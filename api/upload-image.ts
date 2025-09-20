@@ -101,28 +101,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       console.error('BLOB_READ_WRITE_TOKEN environment variable is not set');
       
-      // For development/testing, create a mock public URL using a real accessible image
-      console.log('Development mode: Creating mock public URL for testing');
+      // REAL APPROACH: Save to server filesystem like PHP move_uploaded_file
+      console.log('Saving to server filesystem (like PHP approach)');
       
-      // Use Lorem Picsum with fixed seed for consistent testing
-      const mockUrl = `https://picsum.photos/seed/${uniqueHash}/800/600.jpg`;
+      // On Vercel, we need to use /tmp directory for temporary files
+      const fs = require('fs');
+      const path = require('path');
       
-      console.log('Mock URL created:', mockUrl);
+      // Create the file in /tmp (only place writable on Vercel)
+      const tempDir = '/tmp';
+      const filePath = path.join(tempDir, finalFilename);
       
-      return res.status(200).json({
-        success: true,
-        publicUrl: mockUrl,
-        imageUrl: mockUrl,
-        downloadUrl: mockUrl,
-        filename: finalFilename,
-        message: 'Development mode: Using test image. Configure BLOB_READ_WRITE_TOKEN for production.',
-        isDevelopment: true,
-        debug: {
-          originalSize: Buffer.from(base64Data, 'base64').length,
-          processedSize: imageBuffer.length,
-          mockUrl: mockUrl
-        }
-      });
+      try {
+        // Write the processed image buffer to file
+        fs.writeFileSync(filePath, imageBuffer);
+        console.log('File saved to:', filePath);
+        
+        // Return error - we need proper storage for production
+        return res.status(500).json({
+          success: false,
+          error: 'Storage not configured',
+          message: 'BLOB_READ_WRITE_TOKEN required for production deployment. Files cannot be served from Vercel /tmp directory.',
+          solution: 'Please set BLOB_READ_WRITE_TOKEN in Vercel environment variables',
+          debug: {
+            savedToTemp: filePath,
+            note: 'File saved but not publicly accessible'
+          }
+        });
+      } catch (error) {
+        console.error('Failed to save file:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'File save failed',
+          message: 'Could not save uploaded file'
+        });
+      }
     }
     
     // Upload to Vercel Blob with proper headers
