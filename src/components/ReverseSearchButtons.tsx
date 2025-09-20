@@ -1,6 +1,7 @@
 // src/components/ReverseSearchButtons.tsx
 import { useState } from 'react';
-import { ExternalLink, Copy, Search, Download, X } from 'lucide-react';
+import { ExternalLink, Copy, Search, Download, X, AlertTriangle } from 'lucide-react';
+import ManualFallback from './fallback/ManualFallback';
 
 interface ReverseSearchButtonsProps {
   imageUrl: string;
@@ -12,14 +13,14 @@ const searchProviders = [
   {
     name: 'Google Images',
     key: 'google',
-    url: 'https://images.google.com/searchbyimage?image_url=',
+    url: 'https://www.google.com/searchbyimage?image_url=',
     icon: '🔍',
     color: 'bg-blue-500 hover:bg-blue-600'
   },
   {
     name: 'Google Lens',
-    key: 'google_lens',
-    url: 'https://lens.google.com/',
+    key: 'google_lens', 
+    url: 'https://www.google.com/searchbyimage?image_url=',
     icon: '📷',
     color: 'bg-green-500 hover:bg-green-600'
   },
@@ -33,14 +34,14 @@ const searchProviders = [
   {
     name: 'Bing Visual',
     key: 'bing',
-    url: 'https://www.bing.com/images/search?view=detailv2&iss=1&FORM=IRSBIQ&cbir=sbi&imgurl=',
+    url: 'https://www.bing.com/images/search?q=imgurl:',
     icon: '🌐',
     color: 'bg-orange-500 hover:bg-orange-600'
   },
   {
     name: 'Yandex',
     key: 'yandex',
-    url: 'https://yandex.com/images/search?rpt=imageview&url=',
+    url: 'https://yandex.com/images/search?url=',
     icon: '🗺️',
     color: 'bg-red-500 hover:bg-red-600'
   }
@@ -52,6 +53,7 @@ export default function ReverseSearchButtons({
   isApiAvailable = false 
 }: ReverseSearchButtonsProps) {
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showManualFallback, setShowManualFallback] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<typeof searchProviders[0] | null>(null);
 
   // Debug logging
@@ -80,36 +82,43 @@ export default function ReverseSearchButtons({
       return;
     }
     
-    // For public URLs, open search engine directly (like your PHP project)
+    // For public URLs, open search engine directly with proper URL encoding
     console.log('Opening direct URL for', provider.name);
     console.log('Image URL being used:', imageUrl);
+    
+    // CRITICAL: Always use encodeURIComponent for proper URL encoding
     const encodedUrl = encodeURIComponent(imageUrl);
     console.log('Encoded URL:', encodedUrl);
-    let searchUrl;
     
-    // Use the exact same URL patterns as your working PHP project
+    let searchUrl: string;
+    
+    // Use the correct URL patterns as specified in requirements
     switch (provider.key) {
       case 'google':
-        // Try different Google URL patterns that are known to work
-        searchUrl = `https://images.google.com/searchbyimage?image_url=${encodedUrl}`;
-        break;
       case 'google_lens':
-        searchUrl = `https://lens.google.com/uploadbyurl/search?img_url=${encodedUrl}`;
+        // Google Images searchbyimage endpoint
+        searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
         break;
       case 'tineye':
+        // TinEye direct URL parameter
         searchUrl = `https://tineye.com/search?url=${encodedUrl}`;
         break;
       case 'bing':
+        // Bing Visual Search with imgurl parameter
         searchUrl = `https://www.bing.com/images/search?q=imgurl:${encodedUrl}&view=detailv2`;
         break;
       case 'yandex':
-        searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
+        // Yandex Images with URL parameter
+        searchUrl = `https://yandex.com/images/search?url=${encodedUrl}`;
         break;
       default:
+        // Fallback for any other providers
         searchUrl = provider.url + encodedUrl;
     }
     
     console.log('Final search URL:', searchUrl);
+    
+    // Open in new tab with proper security
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
   };
 
@@ -121,10 +130,7 @@ export default function ReverseSearchButtons({
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       
-      // Create a temporary file for download
-      const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' });
-      
-      // Auto-download the image for user
+      // Create download for user (removed unused File variable)
       const downloadUrl = URL.createObjectURL(blob);
       const downloadLink = document.createElement('a');
       downloadLink.href = downloadUrl;
@@ -339,6 +345,16 @@ export default function ReverseSearchButtons({
               <p className="text-blue-700 dark:text-blue-300 text-xs mt-3 font-medium">
                 💡 Tip: Download your image first using the ⬇ button above, then click any search button for instructions.
               </p>
+              
+              <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
+                <button
+                  onClick={() => setShowManualFallback(true)}
+                  className="inline-flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 font-medium"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Need help? View detailed manual upload guide
+                </button>
+              </div>
             </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -523,6 +539,14 @@ export default function ReverseSearchButtons({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Manual Fallback Modal */}
+      {showManualFallback && (
+        <ManualFallback 
+          imageUrl={imageUrl}
+          onClose={() => setShowManualFallback(false)}
+        />
       )}
     </div>
   );
