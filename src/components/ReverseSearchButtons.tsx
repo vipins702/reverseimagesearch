@@ -182,12 +182,26 @@ export default function ReverseSearchButtons({
         })
       });
       
-      if (!uploadResponse.ok) {
+      // Defensive: try to read text first for clearer errors on 4xx/5xx
+      const rawText = await uploadResponse.text();
+      let uploadResult: any = null;
+      try {
+        uploadResult = rawText ? JSON.parse(rawText) : null;
+      } catch (e) {
+        console.error('Upload JSON parse failed. Raw response:', rawText);
+        throw new Error(`Upload responded with non-JSON. Status=${uploadResponse.status}`);
+      }
+      
+      if (!uploadResponse.ok || !uploadResult) {
+        console.error('Upload failed response:', {
+          status: uploadResponse.status,
+          statusText: uploadResponse.statusText,
+          body: uploadResult
+        });
         throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
       }
       
-      const uploadResult = await uploadResponse.json();
-      console.log('Upload result:', uploadResult);
+      console.log('Upload result (parsed):', uploadResult);
       
       if (!uploadResult.success || !uploadResult.publicUrl) {
         throw new Error('Failed to get public URL from upload');
