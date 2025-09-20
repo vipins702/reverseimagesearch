@@ -156,113 +156,66 @@ export default function ReverseSearchButtons({
 
   const handleGoogleImageUpload = async (provider: typeof searchProviders[0]) => {
     try {
-      console.log('Starting Google vsrid upload process for', provider.name);
+      console.log('Starting Google image search process for', provider.name);
       
-      // Check if imageUrl is already a vsrid URL (don't fetch these)
-      if (imageUrl.includes('vsrid=') || imageUrl.includes('google.com/search')) {
-        console.log('Detected vsrid URL - redirecting directly without fetch');
+      // Check if imageUrl is already a Google search URL (don't process these)
+      if (imageUrl.includes('google.com/search') || imageUrl.includes('lens.google.com')) {
+        console.log('Detected Google search URL - redirecting directly');
         window.open(imageUrl, '_blank', 'noopener,noreferrer');
         return;
       }
       
-      // CRITICAL: Implement direct Google searchbyimage upload to get proper vsrid URLs
-      // Working URLs need these parameters: vsrid, vsint, udm=26, lns_vfs, vsdim, session IDs
+      // RECOMMENDED APPROACH: Upload to server → get public URL → use Google searchbyimage?image_url=
+      // This is much more reliable than trying to upload directly to Google
       
-      console.log('Converting image for Google upload...');
+      console.log('Uploading image to server for public URL...');
       
-      let imageBlob: Blob;
-      
-      if (imageUrl.startsWith('data:')) {
-        // Convert data URL to blob
-        const response = await fetch(imageUrl);
-        imageBlob = await response.blob();
-      } else {
-        // Fetch public URL and convert to blob
-        const response = await fetch(imageUrl);
-        imageBlob = await response.blob();
-      }
-      
-      // Create form data for Google's searchbyimage/upload endpoint
-      const formData = new FormData();
-      formData.append('encoded_image', imageBlob, 'image.jpg');
-      formData.append('image_content', '');
-      formData.append('filename', '');
-      formData.append('hl', 'en');
-      formData.append('safe', 'images');
-      formData.append('udm', '26'); // Universal search mode for images - CRITICAL parameter
-      
-      console.log('Uploading to Google searchbyimage endpoint for vsrid generation...');
-      
-      // Upload to Google's searchbyimage endpoint
-      const uploadUrl = 'https://www.google.com/searchbyimage/upload';
-      
-      const response = await fetch(uploadUrl, {
+      // Upload image to our server to get a public URL
+      const uploadResponse = await fetch('/api/upload-image', {
         method: 'POST',
-        body: formData,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'DNT': '1',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'same-origin',
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          imageData: imageUrl, // Can be data URL or public URL
+          filename: `google-search-${Date.now()}.jpg`
+        })
       });
       
-      console.log('Google upload response:', {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url,
-        hasVsrid: response.url.includes('vsrid=')
-      });
-      
-      if (response.ok && response.url.includes('vsrid=')) {
-        // Successfully generated vsrid URL with all parameters!
-        const vsridUrl = response.url;
-        console.log('SUCCESS: Generated complete vsrid URL:', vsridUrl);
-        
-        // Parse the URL to verify we have all required parameters
-        const urlParams = new URL(vsridUrl);
-        const vsrid = urlParams.searchParams.get('vsrid');
-        const vsint = urlParams.searchParams.get('vsint');
-        const udm = urlParams.searchParams.get('udm');
-        const lns_vfs = urlParams.searchParams.get('lns_vfs');
-        const vsdim = urlParams.searchParams.get('vsdim');
-        const gsessionid = urlParams.searchParams.get('gsessionid');
-        const lsessionid = urlParams.searchParams.get('lsessionid');
-        
-        console.log('vsrid URL parameters analysis:', {
-          vsrid: !!vsrid,
-          vsint: !!vsint, 
-          udm: !!udm,
-          lns_vfs: !!lns_vfs,
-          vsdim: !!vsdim,
-          gsessionid: !!gsessionid,
-          lsessionid: !!lsessionid,
-          totalParams: Array.from(urlParams.searchParams.keys()).length
-        });
-        
-        // Open the complete vsrid URL - this should work like the working example!
-        window.open(vsridUrl, '_blank', 'noopener,noreferrer');
-        console.log('Opened complete vsrid URL with all parameters');
-        return;
-        
-      } else {
-        console.error('Google upload failed:', response.status, response.statusText);
-        throw new Error(`Google upload failed: ${response.status} ${response.statusText}`);
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
       }
+      
+      const uploadResult = await uploadResponse.json();
+      console.log('Upload result:', uploadResult);
+      
+      if (!uploadResult.success || !uploadResult.publicUrl) {
+        throw new Error('Failed to get public URL from upload');
+      }
+      
+      const publicUrl = uploadResult.publicUrl;
+      console.log('Got public URL:', publicUrl);
+      
+      // Use Google's searchbyimage with image_url parameter
+      // This is the simple, reliable approach that works consistently
+      const searchUrl = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(publicUrl);
+      
+      console.log('Opening Google search with public URL:', searchUrl);
+      
+      // Open Google search - this will automatically redirect to Lens if needed
+      window.open(searchUrl, '_blank', 'noopener,noreferrer');
+      
+      console.log('Google search opened successfully with public URL method');
+      return;
       
     } catch (error) {
-      console.error('Google vsrid generation failed:', error);
+      console.error('Google search with public URL failed:', error);
       
       // Fallback to manual upload with auto-download
       console.log('Falling back to manual upload method...');
       
       try {
-        // Convert data URL to blob for download
+        // Convert image URL to blob for download
         const response = await fetch(imageUrl);
         const blob = await response.blob();
         
@@ -279,7 +232,7 @@ export default function ReverseSearchButtons({
         // Clean up the blob URL
         setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
         
-        // Use URLs that are more likely to generate vsrid-style results
+        // Use standard Google search URLs
         let targetUrl: string;
         if (provider.key === 'google_lens') {
           targetUrl = 'https://lens.google.com/';
@@ -292,7 +245,7 @@ export default function ReverseSearchButtons({
           ...provider,
           autoDownloaded: true,
           labnolStyle: true,
-          fallbackReason: 'Direct vsrid generation failed - using manual upload method'
+          fallbackReason: 'Public URL method failed - using manual upload fallback'
         } as any);
         setShowInstructions(true);
         
