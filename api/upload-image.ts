@@ -112,6 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         success: true,
         publicUrl: mockUrl,
+        imageUrl: mockUrl,
         downloadUrl: mockUrl,
         filename: finalFilename,
         message: 'Development mode: Using test image. Configure BLOB_READ_WRITE_TOKEN for production.',
@@ -138,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     // The blob.url is a real public URL that external services can access
-    const publicUrl = blob.url;
+  const publicUrl = blob.url;
 
     console.log('Image uploaded successfully to Vercel Blob:', {
       filename: finalFilename,
@@ -150,6 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       success: true,
       publicUrl: publicUrl,
+      imageUrl: publicUrl,
       downloadUrl: blob.downloadUrl,
       filename: finalFilename,
       message: 'Image uploaded and processed successfully',

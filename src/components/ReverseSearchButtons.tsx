@@ -129,7 +129,7 @@ export default function ReverseSearchButtons({
       case 'google':
       case 'google_lens':
         // Google Images searchbyimage endpoint - this generates vsrid URLs
-        searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
+        searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}&tbm=isch`;
         break;
       case 'tineye':
         // TinEye direct URL parameter
@@ -140,8 +140,8 @@ export default function ReverseSearchButtons({
         searchUrl = `https://www.bing.com/images/search?q=imgurl:${encodedUrl}&view=detailv2`;
         break;
       case 'yandex':
-        // Yandex Images with URL parameter
-        searchUrl = `https://yandex.com/images/search?url=${encodedUrl}`;
+        // Yandex Images requires rpt=imageview for URL-based reverse search
+        searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
         break;
       default:
         // Fallback for any other providers
@@ -170,35 +170,42 @@ export default function ReverseSearchButtons({
       
       console.log('Uploading image to server for public URL...');
 
-      // Prefer local realtime upload folder when available: /api/upload-for-search (multipart)
+      // Prefer local realtime upload folder when available (localhost only): /api/upload-for-search (multipart)
       let uploadResult: any = null;
       let publicUrl: string | null = null;
+  const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(window.location.hostname);
+  const isViteDev = typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.DEV === true;
+  const isVercelDevPort = window.location.port === '3000';
+  const shouldTryLocalRealtime = isLocalHost && isViteDev && !isVercelDevPort;
 
       // Prepare a Blob from the current imageUrl (data URL or http)
       const fetched = await fetch(imageUrl);
       const imageBlob = await fetched.blob();
+      if (shouldTryLocalRealtime) {
+        try {
+          const formData = new FormData();
+          formData.append('image', imageBlob, `image-${Date.now()}.jpg`);
 
-      try {
-        const formData = new FormData();
-        formData.append('image', imageBlob, `image-${Date.now()}.jpg`);
+          const localRes = await fetch('/api/upload-for-search', {
+            method: 'POST',
+            body: formData
+          });
 
-        const localRes = await fetch('/api/upload-for-search', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (localRes.ok) {
-          const localJson = await localRes.json();
-          console.log('Local upload-for-search result:', localJson);
-          if (localJson && localJson.success && localJson.publicUrl) {
-            uploadResult = localJson;
-            publicUrl = localJson.publicUrl as string;
+          if (localRes.ok) {
+            const localJson = await localRes.json();
+            console.log('Local upload-for-search result:', localJson);
+            if (localJson && localJson.success && localJson.publicUrl) {
+              uploadResult = localJson;
+              publicUrl = localJson.publicUrl as string;
+            }
+          } else {
+            console.warn('Local /api/upload-for-search failed with status', localRes.status);
           }
-        } else {
-          console.warn('Local /api/upload-for-search failed with status', localRes.status);
+        } catch (e) {
+          console.warn('Local realtime upload attempt failed, will try serverless:', e);
         }
-      } catch (e) {
-        console.warn('Local realtime upload attempt failed, will try serverless:', e);
+      } else {
+        console.log('Skipping /api/upload-for-search (not Vite dev with local Express) - using serverless upload');
       }
 
       // Fallback to serverless upload-image (Vercel Blob) with JSON body
