@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  const { width = '300', height = '200', text = 'Placeholder' } = req.query;
+  const params = req.query.params as string[] || [];
+  const [width = '300', height = '200'] = params;
+  const text = Array.isArray(req.query.text) ? req.query.text[0] : req.query.text || 'Placeholder';
   
   // Set headers for SVG response
   res.setHeader('Content-Type', 'image/svg+xml');
