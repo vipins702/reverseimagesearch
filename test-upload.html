@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Test - Public URL Creation</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .debug { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input[type="file"] { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Public URL Creation Test</h1>
+    <p>This test shows exactly how your backend creates public URLs from uploaded images.</p>
+    
+    <div>
+        <h3>Step 1: Upload Image</h3>
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="testUpload()">Upload & Get Public URL</button>
+    </div>
+    
+    <div id="debug"></div>
+    
+    <script>
+        async function testUpload() {
+            const fileInput = document.getElementById('imageInput');
+            const debugDiv = document.getElementById('debug');
+            
+            if (!fileInput.files[0]) {
+                alert('Please select an image first');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            // Convert to base64 (like your frontend does)
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Data = e.target.result;
+                
+                debugDiv.innerHTML = `
+                    <div class="debug">
+                        <h4>🔄 Step 1: File Selected</h4>
+                        <p><strong>File name:</strong> ${file.name}</p>
+                        <p><strong>File size:</strong> ${file.size} bytes</p>
+                        <p><strong>File type:</strong> ${file.type}</p>
+                        <p><strong>Base64 length:</strong> ${base64Data.length} chars</p>
+                    </div>
+                `;
+                
+                try {
+                    // Call your upload API
+                    console.log('🚀 Calling /api/upload-image...');
+                    
+                    const response = await fetch('/api/upload-image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            imageData: base64Data,
+                            filename: file.name
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    debugDiv.innerHTML += `
+                        <div class="debug">
+                            <h4>🔄 Step 2: API Response</h4>
+                            <p><strong>HTTP Status:</strong> ${response.status}</p>
+                            <p><strong>Response:</strong></p>
+                            <pre>${JSON.stringify(result, null, 2)}</pre>
+                        </div>
+                    `;
+                    
+                    if (result.success && result.publicUrl) {
+                        // Test if the public URL works
+                        const testResponse = await fetch(result.publicUrl, { method: 'HEAD' });
+                        
+                        debugDiv.innerHTML += `
+                            <div class="debug success">
+                                <h4>✅ Step 3: Public URL Created Successfully!</h4>
+                                <p><strong>Public URL:</strong> <a href="${result.publicUrl}" target="_blank">${result.publicUrl}</a></p>
+                                <p><strong>URL accessible:</strong> ${testResponse.ok ? 'YES ✅' : 'NO ❌'}</p>
+                                <p><strong>Status:</strong> ${testResponse.status}</p>
+                                
+                                <h5>🔗 Ready for Google Search:</h5>
+                                <p>Google URL: <a href="https://www.google.com/searchbyimage?image_url=${encodeURIComponent(result.publicUrl)}" target="_blank">
+                                    https://www.google.com/searchbyimage?image_url=${encodeURIComponent(result.publicUrl)}
+                                </a></p>
+                                
+                                <button onclick="window.open('https://www.google.com/searchbyimage?image_url=' + encodeURIComponent('${result.publicUrl}'), '_blank')">
+                                    🔍 Test Google Search
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        debugDiv.innerHTML += `
+                            <div class="debug error">
+                                <h4>❌ Step 3: Public URL Creation Failed</h4>
+                                <p><strong>Issue:</strong> ${result.message || 'Unknown error'}</p>
+                                <p><strong>Solution:</strong> ${result.solution || 'Check server logs'}</p>
+                                ${result.debug ? `<p><strong>Debug info:</strong> ${JSON.stringify(result.debug)}</p>` : ''}
+                            </div>
+                        `;
+                    }
+                    
+                } catch (error) {
+                    debugDiv.innerHTML += `
+                        <div class="debug error">
+                            <h4>❌ Upload Failed</h4>
+                            <p><strong>Error:</strong> ${error.message}</p>
+                        </div>
+                    `;
+                }
+            };
+            
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html>
