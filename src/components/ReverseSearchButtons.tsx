@@ -95,10 +95,12 @@ export default function ReverseSearchButtons({
       
       switch (provider.key) {
         case 'google':
+          // Use Google Images upload page - more reliable for external URLs
+          searchUrl = `https://images.google.com/searchbyimage?image_url=${encodedUrl}`;
+          break;
         case 'google_lens':
-          // FIXED: Use the exact working format that avoids imghp?sbi=1 redirect
-          // This format works better with blob URLs
-          searchUrl = `https://www.google.com/searchbyimage?&image_url=${encodedUrl}`;
+          // Use Google Lens - often works better with external blob URLs
+          searchUrl = `https://lens.google.com/uploadbyurl?url=${encodedUrl}`;
           break;
         case 'bing':
           searchUrl = `https://www.bing.com/images/search?view=detailv2&iss=sbi&form=SBIVSP&q=imgurl:${encodedUrl}`;
@@ -110,7 +112,7 @@ export default function ReverseSearchButtons({
           searchUrl = `https://tineye.com/search?url=${encodedUrl}`;
           break;
         default:
-          searchUrl = `https://www.google.com/searchbyimage?&image_url=${encodedUrl}`;
+          searchUrl = `https://images.google.com/searchbyimage?image_url=${encodedUrl}`;
       }
       
       console.log('Opening search URL:', searchUrl);
@@ -132,6 +134,34 @@ export default function ReverseSearchButtons({
           }
         } catch (error) {
           console.error('❌ Blob URL test failed:', error);
+        }
+      }
+      
+      // Special handling for Google to avoid imghp?sbi=1 redirect
+      if (provider.key === 'google' || provider.key === 'google_lens') {
+        console.log('🔍 Using Google-specific approach...');
+        
+        // Try the modern approach first
+        try {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = 'https://www.google.com/searchbyimage/upload';
+          form.target = '_blank';
+          
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'image_url';
+          input.value = publicUrl;
+          
+          form.appendChild(input);
+          document.body.appendChild(form);
+          form.submit();
+          document.body.removeChild(form);
+          
+          console.log('✅ Used POST method for Google search');
+          return;
+        } catch (error) {
+          console.log('POST method failed, falling back to GET:', error);
         }
       }
       
