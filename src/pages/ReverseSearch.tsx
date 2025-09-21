@@ -36,6 +36,14 @@ export default function ReverseSearch() {
         
         // Upload to server to get public URL (like your PHP upload.php)
         try {
+          console.log('🔄 Starting upload to /api/upload-image...');
+          console.log('📝 Request payload:', {
+            imageDataLength: dataUrl.length,
+            filename: file.name,
+            fileSize: file.size,
+            fileType: file.type
+          });
+
           const response = await fetch('/api/upload-image', {
             method: 'POST',
             headers: {
@@ -47,13 +55,22 @@ export default function ReverseSearch() {
             })
           });
 
+          console.log('📡 Upload response status:', response.status);
           const result = await response.json();
+          console.log('📋 Upload response data:', result);
           
           if (result.success) {
             // Store the public URL (equivalent to $_SESSION['id'] in your PHP)
             setPublicImageUrl(result.publicUrl);
-            console.log('Image uploaded successfully. Public URL:', result.publicUrl);
+            console.log('✅ Image uploaded successfully!');
+            console.log('🔗 Public URL created:', result.publicUrl);
+            console.log('🧪 URL validation:', {
+              isHttps: result.publicUrl.startsWith('https:'),
+              isBlob: result.publicUrl.includes('.vercel-storage.com'),
+              urlLength: result.publicUrl.length
+            });
           } else {
+            console.error('❌ Upload failed:', result);
             throw new Error(result.message || 'Upload failed');
           }
         } catch (uploadError) {
@@ -265,6 +282,32 @@ export default function ReverseSearch() {
                   className="max-w-full max-h-96 object-contain rounded-lg"
                 />
               </div>
+
+              {/* Debug Panel for Public URL */}
+              {publicImageUrl && (
+                <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <h4 className="text-sm font-semibold text-green-900 dark:text-green-200 mb-2">
+                    ✅ Public URL Created Successfully
+                  </h4>
+                  <div className="text-xs text-green-800 dark:text-green-300 space-y-1">
+                    <p><strong>URL:</strong> <a href={publicImageUrl} target="_blank" rel="noopener noreferrer" className="underline break-all">{publicImageUrl}</a></p>
+                    <p><strong>Type:</strong> {publicImageUrl.includes('.vercel-storage.com') ? 'Vercel Blob Storage' : 'Other'}</p>
+                    <p><strong>HTTPS:</strong> {publicImageUrl.startsWith('https:') ? 'Yes' : 'No'}</p>
+                    <p><strong>Length:</strong> {publicImageUrl.length} characters</p>
+                  </div>
+                </div>
+              )}
+              
+              {!publicImageUrl && !isUploading && (
+                <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <h4 className="text-sm font-semibold text-yellow-900 dark:text-yellow-200 mb-2">
+                    ⏳ Waiting for Public URL
+                  </h4>
+                  <p className="text-xs text-yellow-800 dark:text-yellow-300">
+                    Image uploaded but public URL not received yet. Check browser console for details.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Search Options */}
