@@ -13,14 +13,14 @@ interface RecentCheck {
 const mockRecentChecks: RecentCheck[] = [
   {
     id: '1',
-    imageUrl: '/api/placeholder/150/100',
+    imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=150&h=100&fit=crop',
     confidence: 85,
     timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
     status: 'authentic'
   },
   {
     id: '2', 
-    imageUrl: '/api/placeholder/150/100',
+    imageUrl: 'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=150&h=100&fit=crop',
     confidence: 42,
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
     status: 'suspicious'

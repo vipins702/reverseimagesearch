@@ -138,11 +138,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     
-    // Upload to Vercel Blob with proper headers
+    // Upload to Vercel Blob with proper headers and public access
     const blob = await put(finalFilename, imageBuffer, {
       access: 'public',
       contentType: 'image/jpeg',
       cacheControlMaxAge: 3600, // 1 hour cache
+      addRandomSuffix: false, // Keep filename predictable
     });
     
     console.log('Blob upload completed:', {

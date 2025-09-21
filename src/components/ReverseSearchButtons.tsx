@@ -85,17 +85,23 @@ export default function ReverseSearchButtons({
       const encodedUrl = encodeURIComponent(publicUrl);
       let searchUrl: string;
       
-      console.log('Public URL:', publicUrl);
-      console.log('Encoded URL:', encodedUrl);
+      console.log('🔍 Search Debug Info:');
+      console.log('- Original Public URL:', publicUrl);
+      console.log('- URL Length:', publicUrl.length);
+      console.log('- URL starts with https:', publicUrl.startsWith('https:'));
+      console.log('- Is Blob URL:', publicUrl.includes('.vercel-storage.com'));
+      console.log('- Encoded URL:', encodedUrl);
+      console.log('- Provider:', provider.key);
       
       switch (provider.key) {
         case 'google':
         case 'google_lens':
-          // Use exact same format as your PHP: searchbyimage?image_url=
-          searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
+          // FIXED: Use the exact working format that avoids imghp?sbi=1 redirect
+          // This format works better with blob URLs
+          searchUrl = `https://www.google.com/searchbyimage?&image_url=${encodedUrl}`;
           break;
         case 'bing':
-          searchUrl = `https://www.bing.com/images/search?q=imgurl:${encodedUrl}&view=detailv2`;
+          searchUrl = `https://www.bing.com/images/search?view=detailv2&iss=sbi&form=SBIVSP&q=imgurl:${encodedUrl}`;
           break;
         case 'yandex':
           searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
@@ -104,10 +110,30 @@ export default function ReverseSearchButtons({
           searchUrl = `https://tineye.com/search?url=${encodedUrl}`;
           break;
         default:
-          searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
+          searchUrl = `https://www.google.com/searchbyimage?&image_url=${encodedUrl}`;
       }
       
       console.log('Opening search URL:', searchUrl);
+      
+      // Test if the blob URL is accessible before redirecting
+      if (publicUrl.includes('.vercel-storage.com')) {
+        console.log('🧪 Testing blob URL accessibility...');
+        
+        try {
+          const testResponse = await fetch(publicUrl, { method: 'HEAD' });
+          console.log('✅ Blob URL test result:', {
+            status: testResponse.status,
+            headers: Object.fromEntries(testResponse.headers.entries()),
+            accessible: testResponse.ok
+          });
+          
+          if (!testResponse.ok) {
+            console.warn('⚠️ Blob URL not accessible, this may cause Google redirect issues');
+          }
+        } catch (error) {
+          console.error('❌ Blob URL test failed:', error);
+        }
+      }
       
       console.log('Opening:', searchUrl);
       window.open(searchUrl, '_blank', 'noopener,noreferrer');
