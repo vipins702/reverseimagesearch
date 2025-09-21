@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
     const imageBuffer = Buffer.from(base64Data, 'base64');
 
-    // Create FormData for Google's endpoint
+    // Create FormData for Google's endpoint with parameters to get full vsrid URL
     const formData = new FormData();
     formData.append('encoded_image', imageBuffer, {
       filename: 'image.jpg',
@@ -37,7 +37,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     formData.append('lns_mode', 'un');
     formData.append('source', 'lns.web.ukn');
     formData.append('lns_surface', '26');
-    formData.append('lns_vfs', 'd');
+    formData.append('lns_vfs', 'e'); // Changed from 'd' to 'e' to get full URL
+    formData.append('vsrp', '1'); // Additional parameter for full results
+    formData.append('sbisrc', '1'); // Source indicator
 
     console.log('Proxying image upload to Google...');
 
@@ -58,9 +60,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const location = googleResponse.headers.get('location');
 
     if (googleResponse.status >= 300 && googleResponse.status < 400 && location) {
-      console.log('SUCCESS: Got full redirect URL from Google:', location);
-      // Return the complete URL to the client
-      return res.status(200).json({ success: true, fullUrl: location });
+      console.log('Got initial redirect URL from Google:', location);
+      
+      // If we got a tbs=sbi URL, try to get the full vsrid URL
+      if (location.includes('tbs=sbi:')) {
+        console.log('Got tbs=sbi URL, attempting to get full vsrid URL...');
+        
+        try {
+          // Follow the redirect to get the full vsrid URL
+          const followResponse = await fetch(location, {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.5',
+              'Referer': 'https://www.google.com/',
+            },
+            redirect: 'manual'
+          });
+          
+          const secondLocation = followResponse.headers.get('location');
+          
+          if (secondLocation && secondLocation.includes('vsrid=')) {
+            console.log('SUCCESS: Got full vsrid URL:', secondLocation);
+            return res.status(200).json({ 
+              success: true, 
+              fullUrl: secondLocation,
+              intermediateUrl: location 
+            });
+          } else if (followResponse.status === 200) {
+            // Check if the page contains a redirect URL in the content
+            const html = await followResponse.text();
+            const vsridMatch = html.match(/(?:url=|href=)"([^"]*vsrid=[^"]*)/);
+            
+            if (vsridMatch) {
+              const vsridUrl = decodeURIComponent(vsridMatch[1]);
+              console.log('SUCCESS: Extracted vsrid URL from HTML:', vsridUrl);
+              return res.status(200).json({ 
+                success: true, 
+                fullUrl: vsridUrl,
+                extractedFromHtml: true 
+              });
+            }
+          }
+        } catch (followError) {
+          console.log('Failed to follow redirect, returning original URL:', followError);
+        }
+      }
+      
+      // Return the URL we got (either vsrid or tbs=sbi)
+      console.log('Returning URL:', location);
+      return res.status(200).json({ 
+        success: true, 
+        fullUrl: location,
+        type: location.includes('vsrid=') ? 'vsrid' : location.includes('tbs=sbi:') ? 'tbs_sbi' : 'unknown'
+      });
     } else {
       console.error('Google proxy failed. Status:', googleResponse.status);
       const text = await googleResponse.text();

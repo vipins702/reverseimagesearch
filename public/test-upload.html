@@ -140,22 +140,32 @@
                 const result = await response.json();
                 
                 if (result.success && result.fullUrl) {
+                    const urlType = result.type || (result.fullUrl.includes('vsrid=') ? 'vsrid' : 
+                                   result.fullUrl.includes('tbs=sbi:') ? 'tbs_sbi' : 'unknown');
+                    
                     vsridDiv.innerHTML = `
                         <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px;">
-                            <h4>🎯 SUCCESS! Google vsrid URL Generated</h4>
+                            <h4>🎯 SUCCESS! Google Search URL Generated</h4>
+                            <p><strong>URL Type:</strong> ${urlType.toUpperCase()} ${urlType === 'vsrid' ? '(Full format like labnol.org)' : '(Short format)'}</p>
                             <p><strong>Full URL:</strong></p>
                             <p style="word-break: break-all; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 3px;">
                                 <a href="${result.fullUrl}" target="_blank">${result.fullUrl}</a>
                             </p>
                             <p><strong>Contains parameters:</strong></p>
                             <ul style="font-size: 12px;">
-                                <li><strong>vsrid=</strong> Visual Search Result ID (unique to your image)</li>
-                                <li><strong>udm=26</strong> Universal Data Model for image search</li>
-                                <li><strong>gsessionid=</strong> Google session identifier</li>
-                                <li><strong>lsessionid=</strong> Local session identifier</li>
+                                ${urlType === 'vsrid' ? `
+                                    <li><strong>vsrid=</strong> Visual Search Result ID (unique to your image)</li>
+                                    <li><strong>udm=26</strong> Universal Data Model for image search</li>
+                                    <li><strong>gsessionid=</strong> Google session identifier</li>
+                                    <li><strong>lsessionid=</strong> Local session identifier</li>
+                                ` : `
+                                    <li><strong>tbs=sbi:</strong> Search By Image token (shorter format)</li>
+                                    <li>This is a valid reverse search URL but shorter than vsrid format</li>
+                                `}
                             </ul>
+                            ${result.intermediateUrl ? `<p style="font-size: 12px;"><strong>Intermediate URL:</strong> ${result.intermediateUrl}</p>` : ''}
                             <button onclick="window.open('${result.fullUrl}', '_blank')" style="background: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer;">
-                                🎯 Open Google Results (vsrid URL)
+                                🎯 Open Google Results
                             </button>
                         </div>
                     `;

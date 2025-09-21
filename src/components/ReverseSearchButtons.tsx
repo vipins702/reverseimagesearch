@@ -17,10 +17,10 @@ const searchProviders = [
     color: 'bg-blue-500 hover:bg-blue-600'
   },
   {
-    name: 'Google Lens',
-    key: 'google_lens', 
-    icon: '📷',
-    color: 'bg-green-500 hover:bg-green-600'
+    name: 'Google Enhanced',
+    key: 'google_enhanced', 
+    icon: '🎯',
+    color: 'bg-indigo-500 hover:bg-indigo-600'
   },
   {
     name: 'TinEye',
@@ -51,16 +51,14 @@ export default function ReverseSearchButtons({
   const [showManualFallback, setShowManualFallback] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<typeof searchProviders[0] | null>(null);
 
-  // SIMPLE PHP-STYLE APPROACH: Upload → Public URL → Get vsrid URL (like labnol.org)
+  // EXACT SAME APPROACH AS YOUR PHP TOOL: Upload → Public URL → Direct Search
   const handleSearch = async (provider: typeof searchProviders[0]) => {
     try {
       let publicUrl = imageUrl;
-      let originalImageData = null;
       
-      // If it's a data URL, upload to get public URL (like PHP move_uploaded_file)
+      // Step 1: Upload image to get public URL (like PHP move_uploaded_file)
       if (imageUrl.startsWith('data:')) {
-        console.log('Uploading image to get public URL...');
-        originalImageData = imageUrl; // Keep for vsrid generation
+        console.log('📤 Uploading image (like PHP move_uploaded_file)...');
         
         const uploadResponse = await fetch('/api/upload-image', {
           method: 'POST',
@@ -74,110 +72,80 @@ export default function ReverseSearchButtons({
         const result = await uploadResponse.json();
         if (!result.success) {
           console.error('Upload failed:', result.message);
-          // Show error message to user about BLOB_READ_WRITE_TOKEN
           alert(`Upload failed: ${result.message}\n\nSolution: ${result.solution || 'Configure storage'}`);
           return;
         }
         
         publicUrl = result.publicUrl;
-        console.log('Got public URL:', publicUrl);
+        console.log('✅ File uploaded. Public URL:', publicUrl);
       }
       
-      // Special handling for Google to get vsrid URLs (like labnol.org)
-      if (provider.key === 'google' || provider.key === 'google_lens') {
-        console.log('🎯 Getting Google vsrid URL (like labnol.org)...');
+      // Special handling for Enhanced Google (gets long vsrid URLs like labnol.org)
+      if (provider.key === 'google_enhanced') {
+        console.log('🎯 Getting enhanced Google URL with vsrid parameters...');
         
         try {
-          // Use the proxy to get the full vsrid URL
           const vsridResponse = await fetch('/api/google-vsrid-proxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              imageData: originalImageData || imageUrl
+              imageData: imageUrl.startsWith('data:') ? imageUrl : publicUrl
             })
           });
           
           const vsridResult = await vsridResponse.json();
           
           if (vsridResult.success && vsridResult.fullUrl) {
-            console.log('✅ SUCCESS! Got Google vsrid URL:', vsridResult.fullUrl);
-            console.log('🎯 This URL contains the actual reverse search results (like labnol.org)');
-            
-            // Open the vsrid URL directly - this contains the search results
+            console.log('✅ SUCCESS! Got enhanced Google URL:', vsridResult.fullUrl);
             window.open(vsridResult.fullUrl, '_blank', 'noopener,noreferrer');
             return;
           } else {
-            console.warn('⚠️ Failed to get vsrid URL, falling back to direct search');
-            throw new Error('Vsrid generation failed');
+            console.warn('⚠️ Enhanced Google failed, using standard method');
           }
         } catch (vsridError) {
-          console.error('❌ Vsrid proxy failed:', vsridError);
-          console.log('🔄 Falling back to direct URL method...');
+          console.error('❌ Enhanced Google failed:', vsridError);
         }
       }
       
-      // Fallback: Direct redirect to search engines (original method)
+      // Step 2: Create search URLs (exactly like your PHP tool)
       const encodedUrl = encodeURIComponent(publicUrl);
       let searchUrl: string;
       
-      console.log('🔍 Search Debug Info:');
-      console.log('- Original Public URL:', publicUrl);
-      console.log('- URL Length:', publicUrl.length);
-      console.log('- URL starts with https:', publicUrl.startsWith('https:'));
-      console.log('- Is Blob URL:', publicUrl.includes('.vercel-storage.com'));
+      console.log('🔍 Creating search URL (like PHP urlencode)...');
+      console.log('- Public URL:', publicUrl);
       console.log('- Encoded URL:', encodedUrl);
-      console.log('- Provider:', provider.key);
       
       switch (provider.key) {
         case 'google':
-          // Use Google Images upload page - more reliable for external URLs
-          searchUrl = `https://images.google.com/searchbyimage?image_url=${encodedUrl}`;
+          // EXACT same format as your PHP: searchbyimage?image_url=
+          searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
           break;
-        case 'google_lens':
-          // Use Google Lens - often works better with external blob URLs
-          searchUrl = `https://lens.google.com/uploadbyurl?url=${encodedUrl}`;
+        case 'google_enhanced':
+          // Fallback for enhanced (already tried proxy above)
+          searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
           break;
         case 'bing':
           searchUrl = `https://www.bing.com/images/search?view=detailv2&iss=sbi&form=SBIVSP&q=imgurl:${encodedUrl}`;
           break;
         case 'yandex':
+          // EXACT same format as your PHP
           searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
           break;
         case 'tineye':
+          // EXACT same format as your PHP
           searchUrl = `https://tineye.com/search?url=${encodedUrl}`;
           break;
         default:
-          searchUrl = `https://images.google.com/searchbyimage?image_url=${encodedUrl}`;
+          searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
       }
       
-      console.log('Opening search URL:', searchUrl);
+      console.log('🚀 Opening search URL:', searchUrl);
       
-      // Test if the blob URL is accessible before redirecting
-      if (publicUrl.includes('.vercel-storage.com')) {
-        console.log('🧪 Testing blob URL accessibility...');
-        
-        try {
-          const testResponse = await fetch(publicUrl, { method: 'HEAD' });
-          console.log('✅ Blob URL test result:', {
-            status: testResponse.status,
-            headers: Object.fromEntries(testResponse.headers.entries()),
-            accessible: testResponse.ok
-          });
-          
-          if (!testResponse.ok) {
-            console.warn('⚠️ Blob URL not accessible, this may cause Google redirect issues');
-          }
-        } catch (error) {
-          console.error('❌ Blob URL test failed:', error);
-        }
-      }
-      
-      console.log('Opening:', searchUrl);
+      // Step 3: Open search (like PHP header redirect or link click)
       window.open(searchUrl, '_blank', 'noopener,noreferrer');
       
     } catch (error) {
       console.error('Search failed:', error);
-      // Fallback to manual upload instructions
       setSelectedProvider(provider);
       setShowInstructions(true);
     }
@@ -273,14 +241,12 @@ export default function ReverseSearchButtons({
 
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           {imageUrl.startsWith('data:') 
-            ? 'Upload an image or provide a public image URL to enable external search tools.'
+            ? 'Upload an image to enable reverse search. Each button uses the exact same method as your PHP tool.'
             : imageUrl.includes('vsrid=')
               ? '🎯 SUCCESS! You have a Google vsrid URL - this contains your reverse search results (just like labnol.org generates)'
-              : imageUrl.includes('test-urls') || imageUrl.includes('picsum.photos')
-                ? '🧪 Development Mode: Using test image for reverse search demonstration (configure BLOB_READ_WRITE_TOKEN for real uploads)'
-                : imageUrl.startsWith('http')
-                  ? '🔗 Public URL detected: You can use direct search (faster) or manual upload (more private)'
-                  : 'Click any button below to open the search engine with your image URL'
+              : imageUrl.startsWith('http')
+                ? '🔗 Public URL detected: Ready for reverse search (same as your PHP tool method)'
+                : 'Click any button below to open the search engine with your image URL'
           }
         </p>
 
@@ -457,15 +423,14 @@ export default function ReverseSearchButtons({
       {/* Help Text */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
-          How Reverse Search Works (Like labnol.org)
+          How This Works (Same as Your PHP Tool)
         </h4>
         <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-          <li>• External tools search the web for visually similar images</li>
-          <li>• Google Lens generates vsrid URLs like: https://www.google.com/search?vsrid=...</li>
-          <li>• Multiple matches may indicate a widely distributed image</li>
-          <li>• Original source and earliest publication date help verify authenticity</li>
-          <li>• No matches don't guarantee authenticity - could be a new creation</li>
-          <li>• Our method mimics labnol.org's approach for consistent results</li>
+          <li>• **Upload**: Image stored with public URL (like PHP move_uploaded_file)</li>
+          <li>• **Google Images**: Standard search (same as your PHP tool)</li>
+          <li>• **Google Enhanced**: Gets long vsrid URLs like labnol.org</li>
+          <li>• **Other Engines**: TinEye, Bing, Yandex (exact same URLs as PHP)</li>
+          <li>• **URL Encoding**: Uses encodeURIComponent (same as PHP urlencode)</li>
         </ul>
       </div>
 
