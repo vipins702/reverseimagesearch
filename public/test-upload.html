@@ -86,13 +86,20 @@
                                 <p><strong>Status:</strong> ${testResponse.status}</p>
                                 
                                 <h5>🔗 Ready for Google Search:</h5>
-                                <p>Google URL: <a href="https://www.google.com/searchbyimage?image_url=${encodeURIComponent(result.publicUrl)}" target="_blank">
+                                <p>Standard URL: <a href="https://www.google.com/searchbyimage?image_url=${encodeURIComponent(result.publicUrl)}" target="_blank">
                                     https://www.google.com/searchbyimage?image_url=${encodeURIComponent(result.publicUrl)}
                                 </a></p>
                                 
-                                <button onclick="window.open('https://www.google.com/searchbyimage?image_url=' + encodeURIComponent('${result.publicUrl}'), '_blank')">
-                                    🔍 Test Google Search
-                                </button>
+                                <div style="margin: 10px 0;">
+                                    <button onclick="window.open('https://www.google.com/searchbyimage?image_url=' + encodeURIComponent('${result.publicUrl}'), '_blank')">
+                                        🔍 Standard Google Search
+                                    </button>
+                                    <button onclick="getVsridUrl('${base64Data}')" style="background: #4285f4; margin-left: 10px;">
+                                        🎯 Get Google vsrid URL (like labnol.org)
+                                    </button>
+                                </div>
+                                
+                                <div id="vsridResult" style="margin-top: 15px;"></div>
                             </div>
                         `;
                     } else {
@@ -117,6 +124,58 @@
             };
             
             reader.readAsDataURL(file);
+        }
+        
+        async function getVsridUrl(imageData) {
+            const vsridDiv = document.getElementById('vsridResult');
+            vsridDiv.innerHTML = '<p>🔄 Getting Google vsrid URL (like labnol.org)...</p>';
+            
+            try {
+                const response = await fetch('/api/google-vsrid-proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageData: imageData })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.fullUrl) {
+                    vsridDiv.innerHTML = `
+                        <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px;">
+                            <h4>🎯 SUCCESS! Google vsrid URL Generated</h4>
+                            <p><strong>Full URL:</strong></p>
+                            <p style="word-break: break-all; font-size: 12px; background: #f8f9fa; padding: 10px; border-radius: 3px;">
+                                <a href="${result.fullUrl}" target="_blank">${result.fullUrl}</a>
+                            </p>
+                            <p><strong>Contains parameters:</strong></p>
+                            <ul style="font-size: 12px;">
+                                <li><strong>vsrid=</strong> Visual Search Result ID (unique to your image)</li>
+                                <li><strong>udm=26</strong> Universal Data Model for image search</li>
+                                <li><strong>gsessionid=</strong> Google session identifier</li>
+                                <li><strong>lsessionid=</strong> Local session identifier</li>
+                            </ul>
+                            <button onclick="window.open('${result.fullUrl}', '_blank')" style="background: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer;">
+                                🎯 Open Google Results (vsrid URL)
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    vsridDiv.innerHTML = `
+                        <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px;">
+                            <h4>❌ Failed to get vsrid URL</h4>
+                            <p><strong>Error:</strong> ${result.details || 'Unknown error'}</p>
+                            <p>This might happen if Google's endpoint is temporarily unavailable.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                vsridDiv.innerHTML = `
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px;">
+                        <h4>❌ Network Error</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
         }
     </script>
 </body>

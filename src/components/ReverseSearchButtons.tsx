@@ -51,14 +51,16 @@ export default function ReverseSearchButtons({
   const [showManualFallback, setShowManualFallback] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<typeof searchProviders[0] | null>(null);
 
-  // SIMPLE PHP-STYLE APPROACH: Upload → Public URL → Direct Redirect
+  // SIMPLE PHP-STYLE APPROACH: Upload → Public URL → Get vsrid URL (like labnol.org)
   const handleSearch = async (provider: typeof searchProviders[0]) => {
     try {
       let publicUrl = imageUrl;
+      let originalImageData = null;
       
       // If it's a data URL, upload to get public URL (like PHP move_uploaded_file)
       if (imageUrl.startsWith('data:')) {
         console.log('Uploading image to get public URL...');
+        originalImageData = imageUrl; // Keep for vsrid generation
         
         const uploadResponse = await fetch('/api/upload-image', {
           method: 'POST',
@@ -81,7 +83,40 @@ export default function ReverseSearchButtons({
         console.log('Got public URL:', publicUrl);
       }
       
-      // Direct redirect to search engines (like PHP header("Location: ..."))
+      // Special handling for Google to get vsrid URLs (like labnol.org)
+      if (provider.key === 'google' || provider.key === 'google_lens') {
+        console.log('🎯 Getting Google vsrid URL (like labnol.org)...');
+        
+        try {
+          // Use the proxy to get the full vsrid URL
+          const vsridResponse = await fetch('/api/google-vsrid-proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageData: originalImageData || imageUrl
+            })
+          });
+          
+          const vsridResult = await vsridResponse.json();
+          
+          if (vsridResult.success && vsridResult.fullUrl) {
+            console.log('✅ SUCCESS! Got Google vsrid URL:', vsridResult.fullUrl);
+            console.log('🎯 This URL contains the actual reverse search results (like labnol.org)');
+            
+            // Open the vsrid URL directly - this contains the search results
+            window.open(vsridResult.fullUrl, '_blank', 'noopener,noreferrer');
+            return;
+          } else {
+            console.warn('⚠️ Failed to get vsrid URL, falling back to direct search');
+            throw new Error('Vsrid generation failed');
+          }
+        } catch (vsridError) {
+          console.error('❌ Vsrid proxy failed:', vsridError);
+          console.log('🔄 Falling back to direct URL method...');
+        }
+      }
+      
+      // Fallback: Direct redirect to search engines (original method)
       const encodedUrl = encodeURIComponent(publicUrl);
       let searchUrl: string;
       
@@ -134,34 +169,6 @@ export default function ReverseSearchButtons({
           }
         } catch (error) {
           console.error('❌ Blob URL test failed:', error);
-        }
-      }
-      
-      // Special handling for Google to avoid imghp?sbi=1 redirect
-      if (provider.key === 'google' || provider.key === 'google_lens') {
-        console.log('🔍 Using Google-specific approach...');
-        
-        // Try the modern approach first
-        try {
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = 'https://www.google.com/searchbyimage/upload';
-          form.target = '_blank';
-          
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'image_url';
-          input.value = publicUrl;
-          
-          form.appendChild(input);
-          document.body.appendChild(form);
-          form.submit();
-          document.body.removeChild(form);
-          
-          console.log('✅ Used POST method for Google search');
-          return;
-        } catch (error) {
-          console.log('POST method failed, falling back to GET:', error);
         }
       }
       
