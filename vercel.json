@@ -45,10 +45,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "app.js": {
-      "runtime": "@vercel/node@18"
-    }
-  }
+  ]
 }
