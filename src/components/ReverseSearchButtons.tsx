@@ -1,7 +1,8 @@
 // src/components/ReverseSearchButtons.tsx
-import { useState } from 'react';
-import { ExternalLink, Copy, Search, Download, X, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ExternalLink, Copy, Search, Download, X, AlertTriangle, Sparkles, Zap, Tag } from 'lucide-react';
 import ManualFallback from './fallback/ManualFallback';
+import { extractImageKeywords, getSearchOptimizationTips, type SearchKeywords } from '../utils/keywordExtraction';
 
 interface ReverseSearchButtonsProps {
   imageUrl: string;
@@ -11,40 +12,39 @@ interface ReverseSearchButtonsProps {
 
 const searchProviders = [
   {
-    name: 'Google Images',
-    key: 'google',
-    icon: '🔍',
-    color: 'bg-blue-500 hover:bg-blue-600'
-  },
-  {
     name: 'Google Enhanced',
     key: 'google_enhanced', 
     icon: '🎯',
-    color: 'bg-indigo-500 hover:bg-indigo-600'
+    color: 'bg-indigo-500 hover:bg-indigo-600',
+    description: 'Advanced Google search with full results'
   },
   {
     name: 'Google Lens',
     key: 'google_lens',
     icon: '📷',
-    color: 'bg-green-500 hover:bg-green-600'
+    color: 'bg-green-500 hover:bg-green-600',
+    description: 'AI-powered visual recognition'
   },
   {
     name: 'TinEye',
     key: 'tineye',
     icon: '🔎',
-    color: 'bg-purple-500 hover:bg-purple-600'
+    color: 'bg-purple-500 hover:bg-purple-600',
+    description: 'Reverse image search specialist'
   },
   {
     name: 'Bing Visual',
     key: 'bing',
     icon: '🌐',
-    color: 'bg-orange-500 hover:bg-orange-600'
+    color: 'bg-orange-500 hover:bg-orange-600',
+    description: 'Microsoft visual search'
   },
   {
     name: 'Yandex',
     key: 'yandex',
     icon: '🗺️',
-    color: 'bg-red-500 hover:bg-red-600'
+    color: 'bg-red-500 hover:bg-red-600',
+    description: 'Russian search engine'
   }
 ];
 
@@ -56,6 +56,17 @@ export default function ReverseSearchButtons({
   const [showInstructions, setShowInstructions] = useState(false);
   const [showManualFallback, setShowManualFallback] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<typeof searchProviders[0] | null>(null);
+  const [keywords, setKeywords] = useState<SearchKeywords | null>(null);
+  const [showKeywords, setShowKeywords] = useState(false);
+
+  // Extract keywords when image changes
+  useEffect(() => {
+    if (imageUrl && !imageUrl.startsWith('data:')) {
+      const filename = imageUrl.split('/').pop() || 'image';
+      const extractedKeywords = extractImageKeywords(filename);
+      setKeywords(extractedKeywords);
+    }
+  }, [imageUrl]);
 
   // EXACT SAME APPROACH AS YOUR PHP TOOL: Upload → Public URL → Direct Search
   const handleSearch = async (provider: typeof searchProviders[0]) => {
@@ -122,10 +133,6 @@ export default function ReverseSearchButtons({
       console.log('- Encoded URL:', encodedUrl);
       
       switch (provider.key) {
-        case 'google':
-          // EXACT same format as your PHP: searchbyimage?image_url=
-          searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
-          break;
         case 'google_enhanced':
           // Fallback for enhanced (already tried proxy above)
           searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
@@ -317,78 +324,238 @@ export default function ReverseSearchButtons({
             </div>
           </div>
         ) : isDataUrl ? (
-          <div className="space-y-4">
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <p className="text-blue-800 dark:text-blue-200 text-sm">
-                <strong>📋 How it works:</strong> Each button below will:
-              </p>
-              <ul className="text-blue-800 dark:text-blue-200 text-sm mt-2 ml-4 list-disc space-y-1">
-                <li>Show you step-by-step instructions for that search engine</li>
-                <li>Automatically open the search engine website in a new tab</li>
-                <li>Guide you through uploading your downloaded image file</li>
-              </ul>
-              <p className="text-blue-700 dark:text-blue-300 text-xs mt-3 font-medium">
-                💡 Tip: Download your image first using the ⬇ button above, then click any search button for instructions.
-              </p>
-              
-              <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
-                <button
-                  onClick={() => setShowManualFallback(true)}
-                  className="inline-flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 font-medium"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  Need help? View detailed manual upload guide
-                </button>
+          <div className="space-y-6">
+            {/* Enhanced Information Card */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-6 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 dark:from-blue-400/5 dark:to-purple-400/5"></div>
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-xl">
+                    <Sparkles className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                      🚀 Ready for Reverse Search
+                    </h4>
+                    <p className="text-blue-700 dark:text-blue-300 text-sm">
+                      Click any search engine below to find similar images and discover where your photo appears online
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                    <Zap className="w-4 h-4" />
+                    <span>Instant upload & search</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                    <Search className="w-4 h-4" />
+                    <span>Multiple search engines</span>
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {searchProviders.map((provider) => (
+
+            {/* Enhanced Search Buttons Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {searchProviders.map((provider, index) => (
                 <button
                   key={provider.name}
                   onClick={() => handleSearch(provider)}
                   className={`
-                    flex flex-col items-center gap-2 p-4 rounded-xl text-white font-medium
-                    transition-all duration-200 hover:scale-105 hover:shadow-lg
-                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-opacity-50
-                    min-h-touch ${provider.color}
+                    group relative overflow-hidden rounded-2xl p-6 text-white font-medium
+                    transform transition-all duration-300 ease-out
+                    hover:scale-105 hover:shadow-2xl hover:-translate-y-1
+                    focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-opacity-50
+                    ${provider.color} shadow-lg
+                    animate-fade-in-up
                   `}
-                  aria-label={`Get instructions for ${provider.name}`}
+                  style={{
+                    animationDelay: `${index * 100}ms`,
+                    animationFillMode: 'both'
+                  }}
+                  aria-label={`Search with ${provider.name} - ${provider.description}`}
                 >
-                  <span className="text-2xl" role="img" aria-hidden="true">
-                    {provider.icon}
-                  </span>
-                  <span className="text-sm text-center leading-tight">
-                    {provider.name}
-                  </span>
-                  <span className="text-xs opacity-75">Search Now</span>
+                  {/* Animated Background Gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  
+                  {/* Shimmer Effect */}
+                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+                  
+                  <div className="relative flex flex-col items-center gap-3">
+                    <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm group-hover:bg-white/20 transition-colors duration-300">
+                      <span className="text-3xl" role="img" aria-hidden="true">
+                        {provider.icon}
+                      </span>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-lg font-bold block leading-tight">
+                        {provider.name}
+                      </span>
+                      <span className="text-sm opacity-90 block mt-1">
+                        {provider.description}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs opacity-75 group-hover:opacity-100 transition-opacity">
+                      <Search className="w-3 h-3" />
+                      <span>Search Now</span>
+                    </div>
+                  </div>
                 </button>
               ))}
             </div>
+
+            {/* Enhanced Help Section */}
+            <div className="mt-6 pt-6 border-t border-blue-200 dark:border-blue-700">
+              <button
+                onClick={() => setShowManualFallback(true)}
+                className="group inline-flex items-center gap-3 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 font-medium transition-colors duration-200"
+              >
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <span>Need help? View detailed manual upload guide</span>
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {searchProviders.map((provider) => (
-              <button
-                key={provider.name}
-                onClick={() => handleSearch(provider)}
-                className={`
-                  flex flex-col items-center gap-2 p-4 rounded-xl text-white font-medium
-                  transition-all duration-200 hover:scale-105 hover:shadow-lg
-                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-opacity-50
-                  min-h-touch ${provider.color}
-                `}
-                aria-label={`Search on ${provider.name}`}
-              >
-                <span className="text-2xl" role="img" aria-hidden="true">
-                  {provider.icon}
-                </span>
-                <span className="text-sm text-center leading-tight">
-                  {provider.name}
-                </span>
-                <span className="text-xs opacity-75">Direct Search</span>
-              </button>
-            ))}
+          <div className="space-y-6">
+            {/* Success Status Banner */}
+            <div className="relative overflow-hidden bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-6 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-r from-green-600/5 to-emerald-600/5"></div>
+              <div className="relative flex items-center gap-4">
+                <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-xl">
+                  <Zap className="w-6 h-6 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-green-900 dark:text-green-100">
+                    🔗 Ready to Search!
+                  </h4>
+                  <p className="text-green-700 dark:text-green-300 text-sm">
+                    Your image is uploaded and ready. Choose a search engine to find similar images.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Enhanced Search Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {searchProviders.map((provider, index) => (
+                <button
+                  key={provider.name}
+                  onClick={() => handleSearch(provider)}
+                  className={`
+                    group relative overflow-hidden rounded-2xl p-6 text-white font-medium
+                    transform transition-all duration-300 ease-out
+                    hover:scale-105 hover:shadow-2xl hover:-translate-y-1
+                    focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-opacity-50
+                    ${provider.color} shadow-lg
+                    animate-fade-in-up
+                  `}
+                  style={{
+                    animationDelay: `${index * 100}ms`,
+                    animationFillMode: 'both'
+                  }}
+                  aria-label={`Search on ${provider.name} - ${provider.description}`}
+                >
+                  {/* Animated Background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  
+                  {/* Shimmer Effect */}
+                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+                  
+                  <div className="relative flex flex-col items-center gap-3">
+                    <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm group-hover:bg-white/20 transition-colors duration-300">
+                      <span className="text-3xl" role="img" aria-hidden="true">
+                        {provider.icon}
+                      </span>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-lg font-bold block leading-tight">
+                        {provider.name}
+                      </span>
+                      <span className="text-sm opacity-90 block mt-1">
+                        {provider.description}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs opacity-75 group-hover:opacity-100 transition-opacity">
+                      <ExternalLink className="w-3 h-3" />
+                      <span>Direct Search</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Search Keywords & Optimization */}
+            {keywords && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-xl">
+                      <Tag className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <h4 className="text-lg font-semibold text-purple-900 dark:text-purple-100">
+                      🎯 Search Optimization
+                    </h4>
+                  </div>
+                  <button
+                    onClick={() => setShowKeywords(!showKeywords)}
+                    className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200 font-medium"
+                  >
+                    {showKeywords ? 'Hide' : 'Show'} Keywords
+                  </button>
+                </div>
+
+                {showKeywords && (
+                  <div className="space-y-4">
+                    {keywords.primary.length > 0 && (
+                      <div>
+                        <h5 className="font-medium text-purple-800 dark:text-purple-200 mb-2">Primary Keywords</h5>
+                        <div className="flex flex-wrap gap-2">
+                          {keywords.primary.map((keyword, index) => (
+                            <span
+                              key={index}
+                              className="px-3 py-1 bg-purple-100 dark:bg-purple-800/50 text-purple-800 dark:text-purple-200 rounded-full text-sm font-medium"
+                            >
+                              {keyword}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {keywords.suggestions.length > 0 && (
+                      <div>
+                        <h5 className="font-medium text-purple-800 dark:text-purple-200 mb-2">Search Suggestions</h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          {keywords.suggestions.slice(0, 6).map((suggestion, index) => (
+                            <div
+                              key={index}
+                              className="text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 px-3 py-2 rounded-lg"
+                            >
+                              {suggestion}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-3 border-t border-purple-200 dark:border-purple-700">
+                      <h5 className="font-medium text-purple-800 dark:text-purple-200 mb-2">💡 Optimization Tips</h5>
+                      <ul className="text-sm text-purple-700 dark:text-purple-300 space-y-1">
+                        {getSearchOptimizationTips().slice(0, 3).map((tip, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <span className="text-purple-500 mt-1">•</span>
+                            <span>{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -442,19 +609,70 @@ export default function ReverseSearchButtons({
         )}
       </div>
 
-      {/* Help Text */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
+      {/* Enhanced Help Text */}
+      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-6 shadow-lg">
+        <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-4 flex items-center gap-2">
+          <Search className="w-5 h-5" />
           How This Works (Same as Your PHP Tool)
         </h4>
-        <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-          <li>• **Upload**: Image stored with public URL (like PHP move_uploaded_file)</li>
-          <li>• **Google Images**: Standard search (same as your PHP tool)</li>
-          <li>• **Google Enhanced**: Gets long vsrid URLs like labnol.org</li>
-          <li>• **Google Lens**: Visual AI search with object recognition</li>
-          <li>• **Other Engines**: TinEye, Bing, Yandex (exact same URLs as PHP)</li>
-          <li>• **URL Encoding**: Uses encodeURIComponent (same as PHP urlencode)</li>
-        </ul>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-2">✅ Process Flow</h5>
+            <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+              <li>• **Upload**: Image stored with public URL (like PHP move_uploaded_file)</li>
+              <li>• **Google Enhanced**: Gets long vsrid URLs like labnol.org</li>
+              <li>• **Google Lens**: AI-powered visual recognition</li>
+              <li>• **Other Engines**: TinEye, Bing, Yandex (exact same URLs as PHP)</li>
+              <li>• **URL Encoding**: Uses encodeURIComponent (same as PHP urlencode)</li>
+            </ul>
+          </div>
+          <div>
+            <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-2">⚠️ Important Notes</h5>
+            <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+              <li>• **Privacy**: Images are uploaded to secure Vercel Blob storage</li>
+              <li>• **Speed**: Google Enhanced provides fastest results</li>
+              <li>• **Accuracy**: Try multiple engines for best coverage</li>
+              <li>• **Quality**: Higher resolution images yield better matches</li>
+              <li>• **Temporary**: Uploaded images are cached temporarily</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Warning Section */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-6 shadow-lg">
+        <div className="flex items-start gap-3">
+          <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-xl">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-amber-900 dark:text-amber-200 mb-2">
+              🔒 Privacy & Security
+            </h4>
+            <div className="text-sm text-amber-800 dark:text-amber-300 space-y-2">
+              <p>
+                <strong>What we do:</strong> Your images are processed securely and uploaded to Vercel Blob storage with public URLs for search engines to access.
+              </p>
+              <p>
+                <strong>What we don't do:</strong> We don't store, analyze, or share your images beyond the reverse search functionality.
+              </p>
+              <p>
+                <strong>Data retention:</strong> Images are cached temporarily and may be automatically cleaned up after a period of inactivity.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span className="px-2 py-1 bg-amber-100 dark:bg-amber-800/50 text-amber-800 dark:text-amber-200 rounded text-xs">
+                  Secure Upload
+                </span>
+                <span className="px-2 py-1 bg-amber-100 dark:bg-amber-800/50 text-amber-800 dark:text-amber-200 rounded text-xs">
+                  No Personal Data
+                </span>
+                <span className="px-2 py-1 bg-amber-100 dark:bg-amber-800/50 text-amber-800 dark:text-amber-200 rounded text-xs">
+                  Temporary Storage
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Instructions Modal */}
