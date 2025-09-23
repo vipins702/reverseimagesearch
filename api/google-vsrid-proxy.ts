@@ -22,9 +22,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'No image data provided' });
     }
 
-    // Remove data URL prefix and convert to buffer
-    const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
-    const imageBuffer = Buffer.from(base64Data, 'base64');
+    let imageBuffer: Buffer;
+
+    // Handle both data URLs and public URLs
+    if (imageData.startsWith('data:')) {
+      // Remove data URL prefix and convert to buffer
+      const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+      imageBuffer = Buffer.from(base64Data, 'base64');
+      console.log('Processing data URL (base64)');
+    } else if (imageData.startsWith('http')) {
+      // Fetch the image from the public URL
+      console.log('Processing public URL:', imageData);
+      const imageResponse = await fetch(imageData);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+      }
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      imageBuffer = Buffer.from(arrayBuffer);
+      console.log('Downloaded image from URL, size:', imageBuffer.length);
+    } else {
+      throw new Error('Invalid image data format. Expected data URL or public URL.');
+    }
 
     // Create FormData for Google's endpoint with parameters to get full vsrid URL
     const formData = new FormData();

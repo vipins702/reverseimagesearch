@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Your Uploaded Image</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #e8f5e8; border-color: #4CAF50; }
+        .warning { background-color: #fff3cd; border-color: #ffc107; }
+        .error { background-color: #f8d7da; border-color: #dc3545; }
+        button { margin: 10px 5px; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-warning { background-color: #ffc107; color: black; }
+        .url-display { background-color: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 10px 0; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test Your Uploaded Image URL</h1>
+    
+    <div class="test-section success">
+        <h3>✅ Your Uploaded Image</h3>
+        <p><strong>URL:</strong></p>
+        <div class="url-display" id="imageUrl">https://soovkg5fhuyifksp.public.blob.vercel-storage.com/img_1758418919246_3390d96f.jpg</div>
+        <img src="https://soovkg5fhuyifksp.public.blob.vercel-storage.com/img_1758418919246_3390d96f.jpg" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd;">
+    </div>
+
+    <div class="test-section warning">
+        <h3>⚠️ Problem: Standard Google Search</h3>
+        <p>This is what's currently NOT working (redirects to imghp?sbi=1):</p>
+        <div class="url-display" id="standardGoogleUrl"></div>
+        <button class="btn-warning" onclick="testStandardGoogle()">Test Standard Google (Will Redirect)</button>
+        <p><small>This matches your PHP tool exactly but Google blocks it</small></p>
+    </div>
+
+    <div class="test-section success">
+        <h3>🎯 Solution: Enhanced Google with vsrid</h3>
+        <p>This is what should work (gets long vsrid URLs like labnol.org):</p>
+        <button class="btn-success" onclick="testEnhancedGoogle()">Get Enhanced Google URL</button>
+        <div id="enhancedResult" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔗 Alternative Search Engines</h3>
+        <p>These should work reliably:</p>
+        <button class="btn-primary" onclick="testTinEye()">TinEye Search</button>
+        <button class="btn-primary" onclick="testYandex()">Yandex Search</button>
+        <button class="btn-primary" onclick="testBing()">Bing Visual Search</button>
+    </div>
+
+    <script>
+        const imageUrl = 'https://soovkg5fhuyifksp.public.blob.vercel-storage.com/img_1758418919246_3390d96f.jpg';
+        const encodedUrl = encodeURIComponent(imageUrl);
+
+        // Update display
+        document.getElementById('standardGoogleUrl').textContent = 
+            `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
+
+        function testStandardGoogle() {
+            const url = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
+            console.log('Testing standard Google URL:', url);
+            window.open(url, '_blank');
+        }
+
+        async function testEnhancedGoogle() {
+            const resultDiv = document.getElementById('enhancedResult');
+            resultDiv.innerHTML = '<p>🔄 Getting enhanced Google URL...</p>';
+            
+            try {
+                const response = await fetch('/api/google-vsrid-proxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageData: imageUrl })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.fullUrl) {
+                    resultDiv.innerHTML = `
+                        <div class="success" style="padding: 10px; border-radius: 5px;">
+                            <p><strong>✅ SUCCESS! Enhanced Google URL:</strong></p>
+                            <div class="url-display">${result.fullUrl}</div>
+                            <button class="btn-success" onclick="window.open('${result.fullUrl}', '_blank')">
+                                🚀 View Results
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error" style="padding: 10px; border-radius: 5px;">
+                            <p><strong>❌ Enhanced method failed:</strong> ${result.message || 'Unknown error'}</p>
+                            <p>Falling back to standard method...</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error" style="padding: 10px; border-radius: 5px;">
+                        <p><strong>❌ Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function testTinEye() {
+            const url = `https://tineye.com/search?url=${encodedUrl}`;
+            console.log('Testing TinEye:', url);
+            window.open(url, '_blank');
+        }
+
+        function testYandex() {
+            const url = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
+            console.log('Testing Yandex:', url);
+            window.open(url, '_blank');
+        }
+
+        function testBing() {
+            const url = `https://www.bing.com/images/search?view=detailv2&iss=sbi&form=SBIVSP&q=imgurl:${encodedUrl}`;
+            console.log('Testing Bing:', url);
+            window.open(url, '_blank');
+        }
+    </script>
+</body>
+</html>

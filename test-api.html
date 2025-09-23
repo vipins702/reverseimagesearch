@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #e8f5e8; }
+        .error { background-color: #f8d7da; }
+        .loading { background-color: #fff3cd; }
+        button { padding: 10px 20px; margin: 10px 5px; border: none; border-radius: 5px; cursor: pointer; background-color: #007bff; color: white; }
+        .log { background-color: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin: 10px 0; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔧 API Debug Test</h1>
+    
+    <div class="test-section">
+        <h3>Step 1: Test Image Upload</h3>
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="testUpload()">Test Upload API</button>
+        <div id="uploadResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 2: Test Google Proxy (with uploaded image)</h3>
+        <button onclick="testGoogleProxy()" id="proxyButton" disabled>Test Google Proxy</button>
+        <div id="proxyResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 3: Test Direct URLs</h3>
+        <button onclick="testDirectUrls()" id="directButton" disabled>Test Direct Search URLs</button>
+        <div id="directResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Debug Log</h3>
+        <div id="debugLog" class="log"></div>
+    </div>
+
+    <script>
+        let uploadedImageUrl = null;
+        let imageDataUrl = null;
+
+        function log(message) {
+            const now = new Date().toISOString();
+            document.getElementById('debugLog').textContent += `[${now}] ${message}\n`;
+            console.log(message);
+        }
+
+        function showResult(elementId, content, className = '') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = content;
+            element.className = className;
+        }
+
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imageDataUrl = e.target.result;
+                    log(`Image loaded: ${file.name}, size: ${file.size} bytes`);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        async function testUpload() {
+            if (!imageDataUrl) {
+                alert('Please select an image first');
+                return;
+            }
+
+            showResult('uploadResult', '🔄 Testing upload...', 'loading');
+            log('Starting upload test...');
+
+            try {
+                const response = await fetch('/api/upload-image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        imageData: imageDataUrl,
+                        filename: `test-${Date.now()}.jpg`
+                    })
+                });
+
+                const result = await response.json();
+                log(`Upload response: ${JSON.stringify(result, null, 2)}`);
+
+                if (result.success && result.publicUrl) {
+                    uploadedImageUrl = result.publicUrl;
+                    showResult('uploadResult', `
+                        <div class="success">
+                            ✅ Upload successful!<br>
+                            <strong>Public URL:</strong> ${result.publicUrl}<br>
+                            <img src="${result.publicUrl}" style="max-width: 200px; margin: 10px 0;"><br>
+                            <a href="${result.publicUrl}" target="_blank">Open image</a>
+                        </div>
+                    `, 'success');
+                    
+                    document.getElementById('proxyButton').disabled = false;
+                    document.getElementById('directButton').disabled = false;
+                } else {
+                    showResult('uploadResult', `
+                        <div class="error">
+                            ❌ Upload failed: ${result.error || 'Unknown error'}<br>
+                            <strong>Message:</strong> ${result.message || 'No message'}<br>
+                            <strong>Solution:</strong> ${result.solution || 'Check API configuration'}
+                        </div>
+                    `, 'error');
+                }
+            } catch (error) {
+                log(`Upload error: ${error.message}`);
+                showResult('uploadResult', `
+                    <div class="error">
+                        ❌ Network error: ${error.message}
+                    </div>
+                `, 'error');
+            }
+        }
+
+        async function testGoogleProxy() {
+            if (!imageDataUrl) {
+                alert('Please upload an image first');
+                return;
+            }
+
+            showResult('proxyResult', '🔄 Testing Google proxy...', 'loading');
+            log('Starting Google proxy test...');
+
+            try {
+                const response = await fetch('/api/google-vsrid-proxy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        imageData: imageDataUrl
+                    })
+                });
+
+                const result = await response.json();
+                log(`Google proxy response: ${JSON.stringify(result, null, 2)}`);
+
+                if (result.success && result.fullUrl) {
+                    showResult('proxyResult', `
+                        <div class="success">
+                            ✅ Google proxy successful!<br>
+                            <strong>URL type:</strong> ${result.type || 'unknown'}<br>
+                            <strong>Full URL:</strong> <a href="${result.fullUrl}" target="_blank">${result.fullUrl}</a><br>
+                            <button onclick="window.open('${result.fullUrl}', '_blank')">🚀 Open Search Results</button>
+                        </div>
+                    `, 'success');
+                } else {
+                    showResult('proxyResult', `
+                        <div class="error">
+                            ❌ Google proxy failed: ${result.error || 'Unknown error'}<br>
+                            <strong>Details:</strong> ${result.details || 'No details'}
+                        </div>
+                    `, 'error');
+                }
+            } catch (error) {
+                log(`Google proxy error: ${error.message}`);
+                showResult('proxyResult', `
+                    <div class="error">
+                        ❌ Network error: ${error.message}
+                    </div>
+                `, 'error');
+            }
+        }
+
+        function testDirectUrls() {
+            if (!uploadedImageUrl) {
+                alert('Please upload an image first to get a public URL');
+                return;
+            }
+
+            log('Testing direct search URLs...');
+            
+            const encodedUrl = encodeURIComponent(uploadedImageUrl);
+            const searchUrls = {
+                'Google Images': `https://www.google.com/searchbyimage?image_url=${encodedUrl}`,
+                'TinEye': `https://tineye.com/search?url=${encodedUrl}`,
+                'Yandex': `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`,
+                'Bing': `https://www.bing.com/images/search?view=detailv2&iss=sbi&form=SBIVSP&q=imgurl:${encodedUrl}`
+            };
+
+            let html = '<div class="success">🔗 Direct search URLs generated:<br><br>';
+            
+            for (const [name, url] of Object.entries(searchUrls)) {
+                html += `
+                    <strong>${name}:</strong><br>
+                    <a href="${url}" target="_blank" style="font-size: 12px; word-break: break-all;">${url}</a><br>
+                    <button onclick="window.open('${url}', '_blank')" style="margin: 5px 0;">Open ${name}</button><br><br>
+                `;
+                log(`${name}: ${url}`);
+            }
+            
+            html += '</div>';
+            showResult('directResult', html, 'success');
+        }
+
+        // Initialize
+        log('API test page loaded');
+    </script>
+</body>
+</html>

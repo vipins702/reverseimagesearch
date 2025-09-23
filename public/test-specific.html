@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct Test - Your Image</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #e8f5e8; }
+        .error { background-color: #f8d7da; }
+        .warning { background-color: #fff3cd; }
+        button { padding: 10px 20px; margin: 10px 5px; border: none; border-radius: 5px; cursor: pointer; background-color: #007bff; color: white; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-success { background-color: #28a745; }
+        .url-display { background-color: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; margin: 10px 0; word-break: break-all; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .log { background-color: #f1f3f4; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; margin: 10px 0; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Testing Your Specific Image</h1>
+    
+    <div class="test-section success">
+        <h3>✅ Your Uploaded Image</h3>
+        <p><strong>URL:</strong> https://soovkg5fhuyifksp.public.blob.vercel-storage.com/img_1758418919246_3390d96f.jpg</p>
+        <img src="https://soovkg5fhuyifksp.public.blob.vercel-storage.com/img_1758418919246_3390d96f.jpg" style="max-width: 300px; border: 1px solid #ddd;">
+        <p><em>Image loads successfully! ✅</em></p>
+    </div>
+
+    <div class="test-section warning">
+        <h3>⚠️ The Problem: Standard Google Search</h3>
+        <p>This is the URL that should work but redirects to imghp?sbi=1:</p>
+        <div class="url-display" id="standardUrl"></div>
+        <button class="btn-danger" onclick="testStandardGoogle()">Test Standard Google (Will Fail)</button>
+        <div id="standardResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🎯 Solution 1: Test Google Proxy API</h3>
+        <p>Let's test our enhanced Google proxy that tries to get vsrid URLs:</p>
+        <button class="btn-success" onclick="testGoogleProxy()">Test Google Proxy API</button>
+        <div id="proxyResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔗 Solution 2: Alternative Search Engines</h3>
+        <p>These should work reliably with your image:</p>
+        <button onclick="testTinEye()">TinEye</button>
+        <button onclick="testYandex()">Yandex</button>
+        <button onclick="testBing()">Bing</button>
+        <div id="alternativeResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📋 Debug Log</h3>
+        <div id="debugLog" class="log"></div>
+    </div>
+
+    <script>
+        const imageUrl = 'https://soovkg5fhuyifksp.public.blob.vercel-storage.com/img_1758418919246_3390d96f.jpg';
+        const encodedUrl = encodeURIComponent(imageUrl);
+
+        function log(message) {
+            const now = new Date().toLocaleTimeString();
+            document.getElementById('debugLog').textContent += `[${now}] ${message}\n`;
+            console.log(message);
+        }
+
+        function showResult(elementId, content, className = '') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${className}">${content}</div>`;
+        }
+
+        // Initialize
+        document.getElementById('standardUrl').textContent = 
+            `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
+
+        function testStandardGoogle() {
+            log('Testing standard Google search...');
+            const url = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
+            
+            showResult('standardResult', '🔄 Opening Google search (will likely redirect to imghp?sbi=1)...', 'warning');
+            log(`Opening: ${url}`);
+            
+            const newWindow = window.open(url, '_blank');
+            
+            // Check after a few seconds
+            setTimeout(() => {
+                showResult('standardResult', `
+                    ❌ <strong>Expected Result:</strong> Redirected to imghp?sbi=1<br>
+                    <strong>Why:</strong> Google blocks cross-origin reverse image searches from web apps<br>
+                    <strong>Solution:</strong> Use our proxy API or alternative search engines
+                `, 'error');
+            }, 3000);
+        }
+
+        async function testGoogleProxy() {
+            log('Testing Google proxy API...');
+            showResult('proxyResult', '🔄 Testing Google proxy API...', 'warning');
+            
+            try {
+                // Convert the public URL to a data URL for the proxy test
+                log('Converting image to data URL for proxy...');
+                
+                const response = await fetch('/api/google-vsrid-proxy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        imageData: imageUrl // Send the public URL
+                    })
+                });
+
+                const result = await response.json();
+                log(`Proxy response: ${JSON.stringify(result, null, 2)}`);
+
+                if (result.success && result.fullUrl) {
+                    showResult('proxyResult', `
+                        ✅ <strong>SUCCESS!</strong> Got enhanced Google URL<br>
+                        <strong>URL Type:</strong> ${result.type || 'unknown'}<br>
+                        <strong>URL:</strong> <a href="${result.fullUrl}" target="_blank" style="font-size: 11px;">${result.fullUrl}</a><br>
+                        <button onclick="window.open('${result.fullUrl}', '_blank')" class="btn-success">🚀 View Search Results</button>
+                    `, 'success');
+                } else {
+                    showResult('proxyResult', `
+                        ❌ <strong>Proxy failed:</strong> ${result.error || 'Unknown error'}<br>
+                        <strong>Details:</strong> ${result.details || 'No details'}<br>
+                        <strong>Fallback:</strong> Try alternative search engines below
+                    `, 'error');
+                }
+            } catch (error) {
+                log(`Proxy error: ${error.message}`);
+                showResult('proxyResult', `
+                    ❌ <strong>Network error:</strong> ${error.message}<br>
+                    <strong>Possible causes:</strong> API endpoint not responding, CORS issues, or server error
+                `, 'error');
+            }
+        }
+
+        function testTinEye() {
+            const url = `https://tineye.com/search?url=${encodedUrl}`;
+            log(`Testing TinEye: ${url}`);
+            window.open(url, '_blank');
+            updateAlternativeResults('TinEye', url, 'success');
+        }
+
+        function testYandex() {
+            const url = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
+            log(`Testing Yandex: ${url}`);
+            window.open(url, '_blank');
+            updateAlternativeResults('Yandex', url, 'success');
+        }
+
+        function testBing() {
+            const url = `https://www.bing.com/images/search?view=detailv2&iss=sbi&form=SBIVSP&q=imgurl:${encodedUrl}`;
+            log(`Testing Bing: ${url}`);
+            window.open(url, '_blank');
+            updateAlternativeResults('Bing', url, 'success');
+        }
+
+        function updateAlternativeResults(engine, url, status) {
+            const existing = document.getElementById('alternativeResults').innerHTML;
+            const newResult = `
+                <div class="result ${status}">
+                    ✅ <strong>${engine}:</strong> Opened search<br>
+                    <small style="font-family: monospace; font-size: 10px;">${url}</small>
+                </div>
+            `;
+            document.getElementById('alternativeResults').innerHTML = existing + newResult;
+        }
+
+        // Initialize log
+        log('Test page loaded with your image URL');
+        log(`Image URL: ${imageUrl}`);
+        log(`Encoded URL: ${encodedUrl}`);
+    </script>
+</body>
+</html>
