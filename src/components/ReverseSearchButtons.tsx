@@ -23,6 +23,12 @@ const searchProviders = [
     color: 'bg-indigo-500 hover:bg-indigo-600'
   },
   {
+    name: 'Google Lens',
+    key: 'google_lens',
+    icon: '📷',
+    color: 'bg-green-500 hover:bg-green-600'
+  },
+  {
     name: 'TinEye',
     key: 'tineye',
     icon: '🔎',
@@ -124,6 +130,10 @@ export default function ReverseSearchButtons({
           // Fallback for enhanced (already tried proxy above)
           searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
           break;
+        case 'google_lens':
+          // Google Lens with proper image URL parameter
+          searchUrl = `https://lens.google.com/uploadbyurl?url=${encodedUrl}`;
+          break;
         case 'bing':
           searchUrl = `https://www.bing.com/images/search?view=detailv2&iss=sbi&form=SBIVSP&q=imgurl:${encodedUrl}`;
           break;
@@ -132,8 +142,9 @@ export default function ReverseSearchButtons({
           searchUrl = `https://yandex.com/images/search?rpt=imageview&url=${encodedUrl}`;
           break;
         case 'tineye':
-          // EXACT same format as your PHP
-          searchUrl = `https://tineye.com/search?url=${encodedUrl}`;
+          // TinEye with proper URL format - try both approaches
+          searchUrl = `https://www.tineye.com/search?url=${encodedUrl}`;
+          console.log('🔍 TinEye may require manual verification due to anti-bot measures');
           break;
         default:
           searchUrl = `https://www.google.com/searchbyimage?image_url=${encodedUrl}`;
@@ -190,10 +201,21 @@ export default function ReverseSearchButtons({
           steps: [
             '1. Download the image using the ⬇ button above',
             '2. Go to lens.google.com',
-            '3. Click the upload button',
+            '3. Click the upload button or camera icon',
             '4. Select your downloaded image file'
           ],
           directUrl: 'https://lens.google.com'
+        };
+      case 'tineye':
+        return {
+          steps: [
+            '1. Download the image using the ⬇ button above',
+            '2. Go to tineye.com',
+            '3. Click the upload arrow icon',
+            '4. Select your downloaded image file',
+            '5. Note: TinEye may require manual verification'
+          ],
+          directUrl: 'https://tineye.com'
         };
       default:
         return {
@@ -429,6 +451,7 @@ export default function ReverseSearchButtons({
           <li>• **Upload**: Image stored with public URL (like PHP move_uploaded_file)</li>
           <li>• **Google Images**: Standard search (same as your PHP tool)</li>
           <li>• **Google Enhanced**: Gets long vsrid URLs like labnol.org</li>
+          <li>• **Google Lens**: Visual AI search with object recognition</li>
           <li>• **Other Engines**: TinEye, Bing, Yandex (exact same URLs as PHP)</li>
           <li>• **URL Encoding**: Uses encodeURIComponent (same as PHP urlencode)</li>
         </ul>

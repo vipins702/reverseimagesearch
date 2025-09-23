@@ -138,10 +138,22 @@
         }
 
         function testTinEye() {
-            const url = `https://tineye.com/search?url=${encodedUrl}`;
-            log(`Testing TinEye: ${url}`);
-            window.open(url, '_blank');
-            updateAlternativeResults('TinEye', url, 'success');
+            // TinEye often has CORS issues, let's try different approaches
+            const standardUrl = `https://tineye.com/search?url=${encodedUrl}`;
+            const alternativeUrl = `https://www.tineye.com/search?url=${encodedUrl}`;
+            
+            log(`Testing TinEye standard: ${standardUrl}`);
+            log(`Testing TinEye alternative: ${alternativeUrl}`);
+            
+            // Try the standard URL first
+            window.open(standardUrl, '_blank');
+            
+            // Also provide alternative for manual testing
+            updateAlternativeResults('TinEye', `
+                Standard: <a href="${standardUrl}" target="_blank">Try Standard</a><br>
+                Alternative: <a href="${alternativeUrl}" target="_blank">Try Alternative</a><br>
+                <small>Note: TinEye may block direct links from web apps</small>
+            `, 'warning');
         }
 
         function testYandex() {
