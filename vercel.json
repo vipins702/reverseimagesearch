@@ -11,13 +11,44 @@
       "headers": [
         {
           "key": "X-Robots-Tag",
-          "value": "index, follow, max-image-preview:large"
+          "value": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
         },
         {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "key": "Cache-Control", 
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/sitemap.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "index, follow"
+        }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "index, follow"
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "app.js": {
+      "runtime": "@vercel/node@18"
+    }
+  }
 }
