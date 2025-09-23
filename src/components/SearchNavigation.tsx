@@ -1,6 +1,6 @@
 // src/components/SearchNavigation.tsx
 import { useState } from 'react';
-import { Menu, X, Home, Search, Info, Settings, HelpCircle } from 'lucide-react';
+import { Menu, X, Home, Search, Info, HelpCircle } from 'lucide-react';
 
 interface SearchNavigationProps {
   currentPage?: string;
