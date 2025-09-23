@@ -1,0 +1,4 @@
+<!-- This is a placeholder for og-image.jpg -->
+<!-- You should create a 1200x630 image with your branding and text like:
+"Free Reverse Image Search Tool - Find Similar Images, Discover Sources & Check Duplicates"
+Place it in the public folder as og-image.jpg -->

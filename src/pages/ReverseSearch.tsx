@@ -13,6 +13,17 @@ export default function ReverseSearch() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // SEO: Set page title dynamically
+  React.useEffect(() => {
+    document.title = "Free Reverse Image Search - Upload & Find Similar Images | Image Lookup Tool";
+    
+    // Add meta description
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', 'Upload any image to find similar pictures, discover sources, and check duplicates across Google, Bing, Yandex, and TinEye. Free reverse image search tool.');
+    }
+  }, []);
+
   const handleFileSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setError('Please upload a JPG, PNG, or WebP image');
