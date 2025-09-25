@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -105,8 +107,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log('Saving to server filesystem (like PHP approach)');
       
       // On Vercel, we need to use /tmp directory for temporary files
-      const fs = require('fs');
-      const path = require('path');
       
       // Create the file in /tmp (only place writable on Vercel)
       const tempDir = '/tmp';
